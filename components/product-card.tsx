@@ -29,7 +29,7 @@ export function ProductCard({
   const discount = (hash % 30) + 10; // Stable discount 10-39%
 
   return (
-    <div className="bg-white rounded-2xl sm:rounded-3xl overflow-hidden shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.14)] transition-all duration-300 group flex flex-col border border-gray-100 relative">
+    <div className="bg-white rounded-2xl sm:rounded-3xl overflow-hidden h-full shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.14)] transition-all duration-300 group flex flex-col border border-gray-100 relative">
       {/* Discount Tag */}
       <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-10 bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] sm:text-[10px] font-black px-2 py-1 rounded-full shadow-md">
         {discount}% OFF

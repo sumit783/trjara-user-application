@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/lib/cart-context'
+import { PWAProvider } from '@/components/pwa-provider'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -11,12 +13,22 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  themeColor: '#000000',
 }
 
 export const metadata: Metadata = {
   title: 'StyleHub - Modern Products & Bookings',
   description: 'Discover and book premium furniture and clothing products with ease',
   generator: 'v0.app',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'StyleHub',
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
       {
@@ -44,11 +56,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="bg-background">
       <body className="font-sans antialiased bg-background text-foreground">
-        <CartProvider>
-          {children}
-          {process.env.NODE_ENV === 'production' && <Analytics />}
-        </CartProvider>
+        <PWAProvider>
+          <CartProvider>
+            {children}
+            {process.env.NODE_ENV === 'production' && <Analytics />}
+            <Toaster />
+          </CartProvider>
+        </PWAProvider>
       </body>
     </html>
   )
 }
+

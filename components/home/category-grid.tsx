@@ -31,7 +31,7 @@ export function CategoryGrid({ categories }: CategoryGridProps) {
   return (
     <div className="w-full">
       {/* Grid of Categories (6 columns so 5 items + View All fit perfectly across full width) */}
-      <div className="grid grid-cols-6 gap-2 sm:gap-3 w-full">
+      <div className="grid grid-cols-6 md:grid-cols-14 lg:grid-cols-16 gap-2 sm:gap-3 w-full">
         {displayCategories.map((category) => (
           <Link
             key={category.id}
