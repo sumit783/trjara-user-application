@@ -2,14 +2,17 @@
 
 import Link from 'next/link';
 import { Heart, Plus, Star } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ProductCardProps {
   id: string;
   name: string;
   category: string;
   price: number;
-  image: string;
+  image?: string;
+  images?: string[];
+  mrp?: number;
+  discount?: number;
   rating: number;
   onAddToCart: (product: any) => void;
 }
@@ -20,13 +23,23 @@ export function ProductCard({
   category,
   price,
   image,
+  images,
+  mrp,
+  discount: apiDiscount,
   rating,
   onAddToCart,
 }: ProductCardProps) {
   const [isFavorite, setIsFavorite] = useState(false);
+
   // Generate a stable pseudo-random discount based on the product id string
   const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const discount = (hash % 30) + 10; // Stable discount 10-39%
+  const fallbackDiscount = (hash % 30) + 10; // Stable discount 10-39%
+  const discount = apiDiscount !== undefined ? apiDiscount : fallbackDiscount;
+
+  const displayImages = images?.length ? images : (image ? [image] : []);
+
+  const originalPrice = mrp !== undefined ? mrp : price;
+  const sellingPrice = mrp !== undefined ? price : (price * (1 - discount / 100));
 
   return (
     <div className="bg-white rounded-2xl sm:rounded-3xl overflow-hidden h-full shadow-[0_4px_20px_rgb(0,0,0,0.06)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.14)] transition-all duration-300 group flex flex-col border border-gray-100 relative">
@@ -55,7 +68,7 @@ export function ProductCard({
       <Link href={`/product/${id}`} className="block overflow-hidden relative flex-shrink-0">
         <div className="relative aspect-[4/5] w-full bg-gray-50 overflow-hidden">
           <img
-            src={image}
+            src={displayImages[0] || ''}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
           />
@@ -87,10 +100,10 @@ export function ProductCard({
         <div className="mt-3 flex items-end justify-between gap-1 pt-2 border-t border-gray-50">
           <div>
             <p className="text-[9px] sm:text-[10px] text-gray-400 line-through leading-none">
-              ${price.toFixed(2)}
+              ₹{originalPrice.toFixed(2)}
             </p>
             <p className="text-sm sm:text-base font-black text-gray-900 leading-none mt-1">
-              ${(price * (1 - discount / 100)).toFixed(2)}
+              ₹{sellingPrice.toFixed(2)}
             </p>
           </div>
 

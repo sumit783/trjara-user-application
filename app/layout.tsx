@@ -4,6 +4,7 @@ import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/lib/cart-context'
 import { PWAProvider } from '@/components/pwa-provider'
 import { Toaster } from '@/components/ui/sonner'
+import { QueryProvider } from '@/components/query-provider'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -57,11 +58,13 @@ export default function RootLayout({
     <html lang="en" className="bg-background">
       <body className="font-sans antialiased bg-background text-foreground">
         <PWAProvider>
-          <CartProvider>
-            {children}
-            {process.env.NODE_ENV === 'production' && <Analytics />}
-            <Toaster />
-          </CartProvider>
+          <QueryProvider>
+            <CartProvider>
+              {children}
+              {process.env.NODE_ENV === 'production' && <Analytics />}
+              <Toaster />
+            </CartProvider>
+          </QueryProvider>
         </PWAProvider>
       </body>
     </html>

@@ -1,27 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import {Sofa, Shirt, Watch, ShoppingBag, Laptop, LayoutDashboard, Apple } from 'lucide-react';
+import { Sofa, Shirt, Watch, ShoppingBag, Laptop, LayoutDashboard, Apple, Book } from 'lucide-react';
 
 interface CategoryGridProps {
   categories: any[];
 }
 
-const getCategoryIcon = (id: string) => {
-  switch (id) {
-    case 'furniture':
-      return <Sofa size={28} className="text-black" />;
-    case 'clothing':
-      return <Shirt size={28} className="text-black" />;
-    case 'accessories':
-      return <Watch size={28} className="text-black" />;
-    case 'electronics':
-      return <Laptop size={28} className="text-black" />;
-    case 'groceries':
-      return <Apple size={28} className="text-black" />;
-    default:
-      return <ShoppingBag size={28} className="text-black" />;
-  }
+const getCategoryIcon = (name: string) => {
+  const searchStr = name.toLowerCase();
+  if (searchStr.includes('furniture')) return <Sofa size={28} className="text-black" />;
+  if (searchStr.includes('cloth') || searchStr.includes('wear')) return <Shirt size={28} className="text-black" />;
+  if (searchStr.includes('accessor')) return <Watch size={28} className="text-black" />;
+  if (searchStr.includes('electron')) return <Laptop size={28} className="text-black" />;
+  if (searchStr.includes('grocer') || searchStr.includes('food')) return <Apple size={28} className="text-black" />;
+  if (searchStr.includes('book')) return <Book size={28} className="text-black" />;
+  return <ShoppingBag size={28} className="text-black" />;
 };
 
 export function CategoryGrid({ categories }: CategoryGridProps) {
@@ -40,7 +34,7 @@ export function CategoryGrid({ categories }: CategoryGridProps) {
           >
             {/* Category Icon Box */}
             <div className="w-6 h-6 flex items-center justify-center group-hover:bg-primary/5 transition-all duration-300">
-              {getCategoryIcon(category.id)}
+              {getCategoryIcon(category.name)}
             </div>
 
             {/* Content */}

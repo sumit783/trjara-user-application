@@ -4,12 +4,13 @@ import { BottomNavigation } from '@/components/bottom-navigation';
 import { useCart } from '@/lib/cart-context';
 import { getProductById, products } from '@/lib/products';
 import Link from 'next/link';
-import { ChevronRight, Plus, Minus, Search, Share2, Star, Store as StoreIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Minus, Search, Share2, Star, Store as StoreIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Key } from 'react';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ProductCarousel } from '@/components/home/product-carousel';
 import { stores } from '@/components/home/stores-carousel';
+import { fetchProductDetails } from '@/lib/api/products';
 
 const mockReviews = [
   { id: 1, name: 'Alex M.', rating: 5, date: '2 days ago', comment: 'Absolutely amazing quality! Exceeded all my expectations. Will definitely buy again.' },
@@ -25,17 +26,36 @@ const colors = ['#1a1a1a', '#c0c0c0', '#e6c280', '#e0a0a0'];
 export function ProductClient({ productId }: { productId: string }) {
   const { items, addItem } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
-  const product = getProductById(productId);
   
+  const [productData, setProductData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
   const [addedToCart, setAddedToCart] = useState(false);
-  const [selectedVariant, setSelectedVariant] = useState(variants[0]);
-  const [selectedColor, setSelectedColor] = useState(colors[0]);
+  const [selectedOptions, setSelectedOptions] = useState<{ [key: string]: string }>({});
   const [showAllReviews, setShowAllReviews] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [imageCarouselRef, imageCarouselApi] = useEmblaCarousel({ loop: true });
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  useEffect(() => {
+    const getProduct = async () => {
+      try {
+        const result = await fetchProductDetails(productId);
+        if (result.success) {
+          setProductData(result.data);
+          if (result.data.variants && result.data.variants.length > 0) {
+            setSelectedOptions(result.data.variants[0].options);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch product details:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    getProduct();
+  }, [productId]);
 
   const onSelectImage = useCallback(() => {
     if (!imageCarouselApi) return;
@@ -53,19 +73,45 @@ export function ProductClient({ productId }: { productId: string }) {
     };
   }, [imageCarouselApi, onSelectImage]);
 
-  if (!product) {
-    return null;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading product details...</p>
+        </div>
+      </div>
+    );
   }
 
-  const productImages = [
-    product.image,
-    'https://images.unsplash.com/photo-1523293182086-7651a899d37f?w=600&q=80',
-    'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80',
-    'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
-  ];
+  if (!productData) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p>Product not found.</p>
+      </div>
+    );
+  }
+
+  const product = productData;
+
+  const currentVariant = productData.variants?.find((v: any) =>
+    Object.entries(selectedOptions).every(([key, value]) => v.options[key] === value)
+  ) || productData;
+
+  const currentPrice = currentVariant?.price || productData.price;
+  const currentImages = currentVariant?.images?.length > 0 ? currentVariant.images : productData.images || [];
+  const productImages = currentImages.length > 0 ? currentImages : ['https://via.placeholder.com/600'];
+
+  const optionsMap: { [key: string]: Set<string> } = {};
+  productData.variants?.forEach((v: any) => {
+    Object.entries(v.options).forEach(([key, value]) => {
+      if (!optionsMap[key]) optionsMap[key] = new Set();
+      optionsMap[key].add(value as string);
+    });
+  });
 
   const relatedProducts = products
-    .filter((p) => p.category === product.category && p.id !== product.id);
+    .filter((p) => p.category === productData.category && p.id !== productData.id);
 
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
@@ -91,17 +137,26 @@ export function ProductClient({ productId }: { productId: string }) {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Sleek Gradient Header with Search Bar Only */}
+      {/* Sleek Gradient Header with Search Bar and Back Button */}
       <div className="bg-gradient-to-b from-black via-black/80 to-transparent pb-2 pt-4 px-4 sticky top-0 z-50 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto relative flex items-center">
-          <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10" />
-          <input
-            type="text"
-            placeholder="Search products..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white backdrop-blur-md border border-white rounded-xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner"
-          />
+        <div className="max-w-7xl mx-auto relative flex items-center gap-3">
+          <button
+            onClick={() => window.history.back()}
+            className="p-2 bg-white rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Go back"
+          >
+            <ChevronLeft size={24} className="text-foreground" />
+          </button>
+          <div className="relative flex-1">
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none z-10" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white backdrop-blur-md border border-white rounded-xl text-sm text-black focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all shadow-inner"
+            />
+          </div>
         </div>
       </div>
 
@@ -112,7 +167,7 @@ export function ProductClient({ productId }: { productId: string }) {
           <div className="relative aspect-square w-full overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 border border-black/5 group">
             <div className="overflow-hidden w-full h-full" ref={imageCarouselRef}>
               <div className="flex w-full h-full touch-pan-y">
-                {productImages.map((img, index) => (
+                {productImages.map((img: string | Blob | undefined, index: number) => (
                   <div key={index} className="flex-none w-full h-full relative flex items-center justify-center">
                     <img
                       src={img}
@@ -140,12 +195,11 @@ export function ProductClient({ productId }: { productId: string }) {
 
             {/* Carousel Indicator Dots */}
             <div className="absolute bottom-4 right-4 z-10 flex gap-1.5 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full items-center">
-              {productImages.map((_, idx) => (
+              {productImages.map((_: any, idx: number) => (
                 <button
                   key={idx}
                   onClick={() => imageCarouselApi?.scrollTo(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    selectedImageIndex === idx ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+                  className={`h-1.5 rounded-full transition-all duration-300 ${selectedImageIndex === idx ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
                   }`}
                   aria-label={`Go to slide ${idx + 1}`}
                 />
@@ -182,45 +236,6 @@ export function ProductClient({ productId }: { productId: string }) {
               </p>
             </div>
 
-            {/* Variants Selector */}
-            <div className="space-y-4 pt-2">
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-foreground mb-2">Select Variant:</h3>
-                <div className="flex flex-wrap gap-2">
-                  {variants.map((v) => (
-                    <button
-                      key={v}
-                      onClick={() => setSelectedVariant(v)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 ${
-                        selectedVariant === v
-                          ? 'border-primary bg-primary text-white shadow-md'
-                          : 'border-border bg-white text-foreground hover:border-gray-400'
-                      }`}
-                    >
-                      {v}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Color Swatches */}
-              <div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-foreground mb-2">Select Color:</h3>
-                <div className="flex items-center gap-3">
-                  {colors.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => setSelectedColor(c)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all duration-300 ${
-                        selectedColor === c ? 'border-primary scale-110 shadow-md ring-2 ring-primary/30' : 'border-transparent hover:scale-105'
-                      }`}
-                      style={{ backgroundColor: c }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
             {/* Store Info Card */}
             <div className="bg-primary/5 rounded-2xl p-4 border border-primary/20 flex items-center justify-between my-4">
               <div className="flex items-center gap-3">
@@ -234,6 +249,32 @@ export function ProductClient({ productId }: { productId: string }) {
               </div>
               <span className="bg-white text-primary text-[10px] font-black px-2.5 py-1 rounded-lg border border-primary/20 shadow-sm">Verified</span>
             </div>
+              
+            {/* Variants Selector */}
+            <div className="space-y-4 pt-2">
+              {Object.entries(optionsMap).map(([key, values]) => (
+                <div key={key}>
+                  <h3 className="text-xs font-black uppercase tracking-wider text-foreground mb-2">Select {key}:</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {Array.from(values).map((v) => (
+                      <button
+                        key={v}
+                        onClick={() => setSelectedOptions(prev => ({ ...prev, [key]: v }))}
+                        className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 ${
+                          selectedOptions[key] === v
+                            ? 'border-primary bg-primary text-white shadow-md'
+                            : 'border-border bg-white text-foreground hover:border-gray-400'
+                        }`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            
 
             {/* Pricing, Add to Cart, Buy Now row */}
             <div className="flex flex-col gap-2">
@@ -242,7 +283,7 @@ export function ProductClient({ productId }: { productId: string }) {
               <div className="flex-shrink-0 pr-2 border-r border-gray-200">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Total Price</p>
                 <p className="text-lg sm:text-2xl font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                  ${(product.price * quantity).toFixed(2)}
+                  ₹{(currentPrice * quantity).toFixed(2)}
                 </p>
               </div>
 

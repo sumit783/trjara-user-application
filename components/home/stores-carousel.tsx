@@ -50,8 +50,10 @@ export const stores: Store[] = [
   },
 ];
 
-export function StoresCarousel() {
+export function StoresCarousel({ apiStores }: { apiStores?: Store[] }) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const displayStores = apiStores && apiStores.length > 0 ? apiStores : stores;
 
   return (
     <div className="px-4">
@@ -62,7 +64,7 @@ export function StoresCarousel() {
           className="flex gap-2 overflow-x-auto pb-2 scroll-smooth hide-scrollbar items-center"
           style={{ scrollBehavior: 'smooth', scrollSnapType: 'x mandatory' }}
         >
-          {stores.map((store) => (
+          {displayStores.map((store) => (
             <div
               key={store.id}
               className="flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer group"

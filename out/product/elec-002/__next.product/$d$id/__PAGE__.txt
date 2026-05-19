@@ -1,6 +1,0 @@
-1:"$Sreact.fragment"
-2:I[28768,["/_next/static/chunks/0yxqv.vozbgow.js","/_next/static/chunks/099.i4abhpz-a.js","/_next/static/chunks/16lj7.l~519uq.js","/_next/static/chunks/0zibpka..~46_.js","/_next/static/chunks/16ujqjky2_nmv.js"],"ProductClient"]
-3:I[57065,["/_next/static/chunks/0yxqv.vozbgow.js","/_next/static/chunks/099.i4abhpz-a.js"],"OutletBoundary"]
-4:"$Sreact.suspense"
-0:{"rsc":["$","$1","c",{"children":[["$","$L2",null,{"productId":"elec-002"}],[["$","script","script-0",{"src":"/_next/static/chunks/16lj7.l~519uq.js","async":true}],["$","script","script-1",{"src":"/_next/static/chunks/0zibpka..~46_.js","async":true}],["$","script","script-2",{"src":"/_next/static/chunks/16ujqjky2_nmv.js","async":true}]],["$","$L3",null,{"children":["$","$4",null,{"name":"Next.MetadataOutlet","children":"$@5"}]}]]}],"isPartial":false,"staleTime":300,"varyParams":null,"buildId":"7sIhn8K3dA4R4Yz-qlgk8"}
-5:null

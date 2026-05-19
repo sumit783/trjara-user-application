@@ -3,15 +3,38 @@
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { ProductCard } from '@/components/product-card';
 import { useCart } from '@/lib/cart-context';
-import { getProductsByCategory, getCategoryById } from '@/lib/products';
+import { getCategoryById } from '@/lib/products';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { fetchProductsByCategory } from '@/lib/api/categories';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function CategoryClient({ categoryId }: { categoryId: string }) {
   const { items, addItem } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const category = getCategoryById(categoryId);
-  const categoryProducts = getProductsByCategory(category?.name || '');
+
+  const [products, setProducts] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const getProducts = async () => {
+      try {
+        const result = await fetchProductsByCategory(categoryId);
+        if (result.success) {
+          setProducts(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    getProducts();
+  }, [categoryId]);
+
+  const categoryName = category?.name || products[0]?.category || 'Category';
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -22,24 +45,20 @@ export function CategoryClient({ categoryId }: { categoryId: string }) {
             <ChevronRight size={24} className="text-foreground rotate-180" />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-foreground">{category?.name}</h1>
-            <p className="text-xs text-muted-foreground">{categoryProducts.length} products</p>
+            <h1 className="text-xl font-bold text-foreground">{categoryName}</h1>
+            <p className="text-xs text-muted-foreground">{products.length} products</p>
           </div>
         </div>
       </div>
-
-      {/* Category Description Banner */}
-      <section className="bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 py-6 px-4">
-        <div className="max-w-7xl mx-auto">
-          <p className="text-sm text-muted-foreground">
-            {category?.description}
-          </p>
-        </div>
-      </section>
-
       {/* Products Grid */}
       <section className="px-4 py-6">
-        {categoryProducts.length === 0 ? (
+        {isLoading ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-64 rounded-xl" />
+            ))}
+          </div>
+        ) : products.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-muted-foreground text-lg">
               No products found in this category.
@@ -47,7 +66,7 @@ export function CategoryClient({ categoryId }: { categoryId: string }) {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-6">
-            {categoryProducts.map((product) => (
+            {products.map((product) => (
               <ProductCard
                 key={product.id}
                 {...product}

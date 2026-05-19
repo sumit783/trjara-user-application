@@ -1,8 +1,19 @@
-import { getCategoryById, categories } from '@/lib/products';
-import Link from 'next/link';
+import { categories } from '@/lib/products';
 import { CategoryClient } from './category-client';
 
-export function generateStaticParams() {
+export async function generateStaticParams() {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/primary-categories`);
+    const result = await response.json();
+    if (result.success) {
+      return result.data.map((category: any) => ({
+        id: category.id,
+      }));
+    }
+  } catch (error) {
+    console.error('Failed to fetch categories for static params:', error);
+  }
+
   return categories.map((category) => ({
     id: category.id,
   }));
@@ -16,22 +27,5 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { id } = await params;
-  const category = getCategoryById(id);
-
-  if (!category) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">
-            Category not found
-          </h1>
-          <Link href="/" className="text-primary hover:text-accent">
-            Go back home
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return <CategoryClient categoryId={id} />;
 }

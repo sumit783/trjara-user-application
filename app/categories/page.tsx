@@ -2,14 +2,34 @@
 
 import Link from 'next/link';
 import { BottomNavigation } from '@/components/bottom-navigation';
-import { AppHeader } from '@/components/app-header';
 import { ChevronLeft } from 'lucide-react';
-import { categories } from '@/lib/products';
+import { useState, useEffect } from 'react';
+import { fetchPrimaryCategories } from '@/lib/api/categories';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useCart } from '@/lib/cart-context';
 
 export default function CategoriesPage() {
   const { items } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const [categories, setCategories] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const getCategories = async () => {
+      try {
+        const result = await fetchPrimaryCategories();
+        if (result.success) {
+          setCategories(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    getCategories();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -26,29 +46,37 @@ export default function CategoriesPage() {
       {/* Categories Grid */}
       <div className="px-4 py-6">
         <div className="grid grid-cols-2 gap-4">
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/category/${category.id}`}
-              className="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 h-48"
-            >
-              {/* Category Background Image */}
-              <img
-                src={category.image}
-                alt={category.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, index) => (
+              <Skeleton key={index} className="h-48 rounded-2xl" />
+            ))
+          ) : (
+            categories.map((category) => (
+              <Link
+                key={category.id}
+                href={`/category/${category.id}`}
+                className="group relative overflow-hidden rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 h-48"
+              >
+                {/* Category Background Image */}
+                <img
+                  src={category.image}
+                  alt={category.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
 
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                {/* Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-              {/* Content */}
-              <div className="absolute inset-0 flex flex-col justify-end p-4">
-                <h3 className="text-white font-bold text-lg">{category.name}</h3>
-                <p className="text-white/80 text-sm">{category.productCount} products</p>
-              </div>
-            </Link>
-          ))}
+                {/* Content */}
+                <div className="absolute inset-0 flex flex-col justify-end p-4">
+                  <h3 className="text-white font-bold text-lg">{category.name}</h3>
+                  {category.productCount && (
+                    <p className="text-white/80 text-sm">{category.productCount} products</p>
+                  )}
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       </div>
 
