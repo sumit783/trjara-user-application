@@ -1,12 +1,21 @@
 export const fetchProfile = async () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  if (typeof window !== 'undefined' && !token) {
+    return { success: false, message: 'No token found' };
+  }
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/profile`, {
     credentials: 'include',
-    headers: {
-      // Assuming token is stored in localStorage or cookies
-      // We might need to add Authorization header if required
-      // For now, let's assume it sends cookies or we need to pass token
-      // Let's check if there is a token in localStorage in the component
-    }
+    headers,
   });
   
   // If the response is 401 or similar, we might want to return a specific structure
@@ -22,3 +31,112 @@ export const fetchProfile = async () => {
   }
   return response.json();
 };
+
+export const updateProfile = async (body: FormData) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  const headers: Record<string, string> = {};
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/profile`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers,
+    body: body,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || errorData.error || 'Failed to update profile');
+  }
+
+  return response.json();
+};
+
+export const fetchPrimaryAddressLabel = async () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    return { success: false, message: 'No token found' };
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/address/primary-label`, {
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    return { success: false, message: 'Failed to fetch primary address label' };
+  }
+  return response.json();
+};
+
+export const fetchAddresses = async () => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    return { success: false, message: 'No token found' };
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/address`, {
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    return { success: false, message: 'Failed to fetch addresses' };
+  }
+  return response.json();
+};
+
+export const addAddress = async (body: {
+  label: string;
+  addressLine1: string;
+  landmark?: string;
+  city: string;
+  state: string;
+  pincode: string;
+  coordinates: [number, number];
+  isDefault: boolean;
+}) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    throw new Error('No token found. Please login to add an address.');
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/address`, {
+    method: 'POST',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to add address');
+  }
+  return response.json();
+};
+
