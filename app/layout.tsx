@@ -5,6 +5,7 @@ import { CartProvider } from '@/lib/cart-context'
 import { PWAProvider } from '@/components/pwa-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { QueryProvider } from '@/components/query-provider'
+import { CapacitorHandler } from '@/components/capacitor-handler'
 import './globals.css'
 
 const _geist = Geist({ subsets: ["latin"] });
@@ -60,6 +61,7 @@ export default function RootLayout({
         <PWAProvider>
           <QueryProvider>
             <CartProvider>
+              <CapacitorHandler />
               {children}
               {process.env.NODE_ENV === 'production' && <Analytics />}
               <Toaster />

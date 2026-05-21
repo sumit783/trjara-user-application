@@ -65,7 +65,7 @@ export function ProductCard({
       </button>
 
       {/* Image Container */}
-      <Link href={`/product/${id}`} className="block overflow-hidden relative flex-shrink-0">
+      <Link href={`/product?id=${id}`} className="block overflow-hidden relative flex-shrink-0">
         <div className="relative aspect-[4/5] w-full bg-gray-50 overflow-hidden">
           <img
             src={displayImages[0] || ''}
@@ -89,7 +89,7 @@ export function ProductCard({
           <span className="text-[9px] sm:text-[10px] font-black tracking-wider text-primary uppercase bg-primary/5 px-2 py-0.5 rounded-full inline-block mb-1">
             {category}
           </span>
-          <Link href={`/product/${id}`}>
+          <Link href={`/product?id=${id}`}>
             <h3 className="font-bold text-gray-900 line-clamp-2 text-xs sm:text-sm leading-snug group-hover:text-primary transition-colors">
               {name}
             </h3>
