@@ -114,9 +114,7 @@ export function ProductClient({ productId }: { productId: string }) {
     .filter((p) => p.category === productData.category && p.id !== productData.id);
 
   const handleAddToCart = () => {
-    for (let i = 0; i < quantity; i++) {
-      addItem(product);
-    }
+    addItem(product, quantity);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 2000);
   };

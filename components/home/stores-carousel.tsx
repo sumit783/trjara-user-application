@@ -65,8 +65,9 @@ export function StoresCarousel({ apiStores }: { apiStores?: Store[] }) {
           style={{ scrollBehavior: 'smooth', scrollSnapType: 'x mandatory' }}
         >
           {displayStores.map((store) => (
-            <div
+            <Link
               key={store.id}
+              href={`/store?id=${store.id}`}
               className="flex-shrink-0 flex flex-col items-center gap-1 cursor-pointer group"
               style={{ scrollSnapAlign: 'start' }}
             >
@@ -78,7 +79,7 @@ export function StoresCarousel({ apiStores }: { apiStores?: Store[] }) {
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                 />
               </div>
-            </div>
+            </Link>
           ))}
 
           {/* View All Stores Button */}

@@ -67,32 +67,32 @@ export function PromoCarousel() {
   }, [emblaApi, onSelect]);
 
   return (
-    <div className="mx-3 mt-6 mb-7 flex flex-col items-center">
+    <div className="max-w-7xl w-full mx-auto px-3 mt-6 mb-7 flex flex-col items-center">
       <div className="overflow-hidden w-full rounded-3xl shadow-xl" ref={emblaRef}>
         <div className="flex touch-pan-y">
           {banners.map((banner) => (
             <div
               key={banner.id}
-              className="flex-none w-full relative h-56 flex items-end justify-between p-6 overflow-hidden"
+              className="flex-none w-full relative aspect-[16/6] md:aspect-[21/7] lg:aspect-[21/5] flex items-end justify-between p-4 sm:p-6 md:p-8 overflow-hidden"
             >
               {/* Background gradient */}
               <div className={`absolute inset-0 bg-gradient-to-br ${banner.bgGradient}`} />
               
               {/* Content */}
-              <div className="relative z-10 text-white max-w-xs pointer-events-none">
-                <p className="text-xs font-bold uppercase opacity-90 tracking-wide">
+              <div className="relative z-10 text-white max-w-[60%] sm:max-w-xs pointer-events-none">
+                <p className="text-[9px] sm:text-xs font-bold uppercase opacity-90 tracking-wide">
                   {banner.tag}
                 </p>
-                <h2 className="text-3xl font-black leading-tight mt-1 whitespace-pre-line">
+                <h2 className="text-sm sm:text-xl md:text-3xl lg:text-4xl font-black leading-tight mt-0.5 sm:mt-1 whitespace-pre-line">
                   {banner.title}
                 </h2>
-                <p className="text-sm font-semibold opacity-95 mt-2">
+                <p className="text-[10px] sm:text-xs md:text-sm font-semibold opacity-95 mt-0.5 sm:mt-2 line-clamp-1">
                   {banner.subtitle}
                 </p>
               </div>
 
               {/* Product Image */}
-              <div className="absolute right-0 bottom-0 w-40 h-40 -mr-2 -mb-2 pointer-events-none">
+              <div className="absolute right-0 bottom-0 h-[85%] aspect-square -mr-2 -mb-2 pointer-events-none">
                 <img
                   src={banner.image}
                   alt={banner.title.replace('\n', ' ')}

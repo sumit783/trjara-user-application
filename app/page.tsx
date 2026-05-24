@@ -68,6 +68,7 @@ export default function Home() {
   const mapItems = (response: any, fallback: any[]) => {
     return response?.data?.items?.map((item: any) => ({
       id: item.id,
+      inventoryId: item.inventoryId || item.id,
       name: item.name,
       category: item.category,
       price: item.price,
