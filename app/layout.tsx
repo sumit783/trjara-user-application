@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { GeistSans } from 'geist/font/sans'
+import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/lib/cart-context'
 import { PWAProvider } from '@/components/pwa-provider'
@@ -8,9 +9,6 @@ import { QueryProvider } from '@/components/query-provider'
 import { CapacitorHandler } from '@/components/capacitor-handler'
 import { PullToRefresh } from '@/components/pull-to-refresh'
 import './globals.css'
-
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -57,7 +55,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="bg-background" data-scroll-behavior="smooth">
+    <html lang="en" className={`bg-background ${GeistSans.variable} ${GeistMono.variable}`} data-scroll-behavior="smooth">
       <body className="font-sans antialiased bg-background text-foreground">
         <PWAProvider>
           <QueryProvider>
