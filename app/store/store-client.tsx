@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ChevronLeft,
   Search,
@@ -26,6 +27,7 @@ interface StoreClientProps {
 }
 
 export function StoreClient({ storeId }: StoreClientProps) {
+  const router = useRouter();
   const { items, addItem } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -134,9 +136,9 @@ export function StoreClient({ storeId }: StoreClientProps) {
       <div className="bg-white/80 backdrop-blur-md border-b border-gray-100 py-3 px-4 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link href="/stores" className="p-2 hover:bg-gray-100 rounded-lg transition-colors -ml-2">
+            <button onClick={() => router.back()} className="p-2 hover:bg-gray-100 rounded-lg transition-colors -ml-2 cursor-pointer" aria-label="Go Back">
               <ChevronLeft size={24} className="text-foreground" />
-            </Link>
+            </button>
             <div className="flex items-center gap-2">
               <StoreIcon className="text-primary" size={20} />
               <h1 className="text-base font-extrabold text-foreground truncate max-w-[180px] sm:max-w-xs">

@@ -92,6 +92,21 @@ export const clearIndexedDBCart = async (): Promise<void> => {
   }
 };
 
+export const deleteIndexedDBCartItem = async (id: string): Promise<void> => {
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error('Failed to delete cart item from IndexedDB:', error);
+  }
+};
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -214,6 +229,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = (id: string) => {
     setItems((prevItems) => prevItems.filter((i) => i.id !== id));
+    deleteIndexedDBCartItem(id);
   };
 
   const updateQuantity = (id: string, quantity: number) => {

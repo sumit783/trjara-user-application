@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { AppHeader } from '@/components/app-header';
-import { useCart } from '@/lib/cart-context';
+import { useCart, clearIndexedDBCart, saveIndexedDBCartItem } from '@/lib/cart-context';
 import { fetchAddresses, addAddress } from '@/lib/api/user';
 import { ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -67,8 +67,30 @@ const updateBackendCartItemQuantity = async (
   return response.json();
 };
 
+// Delete backend cart item helper
+const deleteBackendCartItem = async (cartItemId: string) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  if (!token) return null;
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/cart/item/${cartItemId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete backend cart item');
+  }
+
+  return response.json();
+};
+
 export default function CartPage() {
   const { items: localItems, removeItem, updateQuantity, clearCart, total: localTotal } = useCart();
+  const [isMounted, setIsMounted] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -87,15 +109,16 @@ export default function CartPage() {
   const [isDetectingLocation, setIsDetectingLocation] = useState(false);
   const [locationSuccess, setLocationSuccess] = useState(false);
 
-  // Check login token
+  // Check login token & set mounted state
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setToken(localStorage.getItem('token'));
     }
+    setIsMounted(true);
   }, []);
 
   // Fetch addresses via React Query
-  const { data: addressesResponse, isLoading: isLoadingAddresses, refetch: refetchAddresses } = useQuery({
+  const { data: addressesResponse, isLoading: isLoadingAddresses } = useQuery({
     queryKey: ['addresses'],
     queryFn: fetchAddresses,
     enabled: !!token,
@@ -111,18 +134,46 @@ export default function CartPage() {
   }, [addressesResponse, token]);
 
   // Fetch backend cart
-  const { data: backendCartResponse, isLoading: isLoadingCart, refetch } = useQuery({
-    queryKey: ['backend-cart'],
+  const { data: backendCartResponse, isLoading: isLoadingCart } = useQuery({
+    queryKey: ['backend-cart', localItems],
     queryFn: fetchBackendCart,
     enabled: !!token,
   });
 
-  // Refetch backend cart when local items change (meaning any product is added/removed/updated in the cart)
+  // Synchronize backend cart items with IndexedDB on load/sync
   useEffect(() => {
+    const syncBackendToIndexedDB = async () => {
+      if (backendCartResponse?.success && backendCartResponse?.data?.items) {
+        const backendItems = backendCartResponse.data.items;
+        try {
+          // Clear IndexedDB completely to avoid any stale data
+          await clearIndexedDBCart();
+          
+          // Re-populate IndexedDB with active server items
+          for (const item of backendItems) {
+            const mappedItem = {
+              id: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
+              name: item.name,
+              price: item.price,
+              category: item.category || 'Product',
+              image: item.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
+              quantity: item.quantity,
+              inventoryId: typeof item.inventoryId === 'object' && item.inventoryId ? item.inventoryId._id : item.inventoryId,
+              variantOptions: item.inventoryId?.variantOptions || item.inventoryId?.variant?.options || null,
+            };
+            await saveIndexedDBCartItem(mappedItem);
+          }
+          console.log('IndexedDB cart successfully synchronized with backend data!');
+        } catch (error) {
+          console.error('Failed to synchronize backend cart to IndexedDB:', error);
+        }
+      }
+    };
+
     if (token) {
-      refetch();
+      syncBackendToIndexedDB();
     }
-  }, [localItems, token, refetch]);
+  }, [backendCartResponse, token]);
 
   // Mutation for updating cart item quantity
   const updateCartItemMutation = useMutation({
@@ -136,12 +187,23 @@ export default function CartPage() {
     },
   });
 
+  // Mutation for deleting cart item completely
+  const deleteCartItemMutation = useMutation({
+    mutationFn: (cartItemId: string) => deleteBackendCartItem(cartItemId),
+    onSuccess: (responseData) => {
+      if (responseData && responseData.success) {
+        queryClient.setQueryData(['backend-cart'], responseData);
+      }
+      queryClient.invalidateQueries({ queryKey: ['backend-cart'] });
+    },
+  });
+
   // Mutation for adding address
   const addAddressMutation = useMutation({
     mutationFn: addAddress,
     onSuccess: () => {
-      refetchAddresses();
-      refetch();
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      queryClient.invalidateQueries({ queryKey: ['backend-cart'] });
     },
   });
 
@@ -150,15 +212,16 @@ export default function CartPage() {
   // Dynamic mapped list of items
   const items = isBackendCartActive 
     ? backendCartResponse.data.items.map((item: any) => ({
-        id: item.productId,
+        id: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
         cartItemId: item._id,
-        inventoryId: item.inventoryId || item.productId,
+        inventoryId: typeof item.inventoryId === 'object' && item.inventoryId ? item.inventoryId._id : item.inventoryId,
         name: item.name,
         category: item.category || 'Product',
         price: item.price,
         mrp: item.mrp || item.price,
         image: item.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
         quantity: item.quantity,
+        variantOptions: item.inventoryId?.variantOptions || item.inventoryId?.variant?.options || null,
       }))
     : localItems;
 
@@ -183,7 +246,7 @@ export default function CartPage() {
       clearCart();
       setBookingConfirmed(false);
       if (token) {
-        refetch();
+        queryClient.invalidateQueries({ queryKey: ['backend-cart'] });
       }
     }, 3000);
   };
@@ -205,22 +268,40 @@ export default function CartPage() {
   };
 
   const handleDecrement = async (itemId: string, inventoryId: string, currentQuantity: number, cartItemId?: string) => {
-    if (token) {
-      try {
-        const qty = Math.max(0, currentQuantity - 1);
-        await updateCartItemMutation.mutateAsync({ quantity: qty, cartItemId, inventoryId });
-      } catch (error) {
-        console.error('Failed to decrement backend item:', error);
+    const qty = currentQuantity - 1;
+    if (qty <= 0) {
+      if (token && cartItemId) {
+        try {
+          await deleteCartItemMutation.mutateAsync(cartItemId);
+          removeItem(itemId);
+        } catch (error) {
+          console.error('Failed to remove backend item via decrement:', error);
+        }
+      } else {
+        removeItem(itemId);
       }
     } else {
-      updateQuantity(itemId, Math.max(1, currentQuantity - 1));
+      if (token) {
+        try {
+          await updateCartItemMutation.mutateAsync({ quantity: qty, cartItemId, inventoryId });
+        } catch (error) {
+          console.error('Failed to decrement backend item:', error);
+        }
+      } else {
+        updateQuantity(itemId, qty);
+      }
     }
   };
 
   const handleRemove = async (itemId: string, inventoryId: string, currentQuantity: number, cartItemId?: string) => {
     if (token) {
       try {
-        await updateCartItemMutation.mutateAsync({ quantity: 0, cartItemId, inventoryId });
+        if (cartItemId) {
+          await deleteCartItemMutation.mutateAsync(cartItemId);
+        } else {
+          await updateCartItemMutation.mutateAsync({ quantity: 0, cartItemId, inventoryId });
+        }
+        removeItem(itemId);
       } catch (error) {
         console.error('Failed to remove backend item:', error);
       }
@@ -325,7 +406,7 @@ export default function CartPage() {
     }
   };
 
-  const isLoading = isLoadingCart || (token && isLoadingAddresses);
+  const isLoading = !isMounted || isLoadingCart || (!!token && isLoadingAddresses);
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -348,7 +429,7 @@ export default function CartPage() {
         />
 
         {/* Loading Skeleton */}
-        {isLoading && token ? (
+        {isLoading ? (
           <CartShimmer />
         ) : items.length === 0 ? (
           /* Empty state */
@@ -382,12 +463,12 @@ export default function CartPage() {
                   <CartItemRow
                     key={item.cartItemId || item.inventoryId || item.id}
                     item={item}
-                    isPending={updateCartItemMutation.isPending}
+                    isPending={updateCartItemMutation.isPending || deleteCartItemMutation.isPending}
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
                     onRemove={handleRemove}
                     mutatingInventoryId={updateCartItemMutation.variables?.inventoryId}
-                    mutatingCartItemId={updateCartItemMutation.variables?.cartItemId}
+                    mutatingCartItemId={updateCartItemMutation.variables?.cartItemId || deleteCartItemMutation.variables}
                   />
                 ))}
               </div>
