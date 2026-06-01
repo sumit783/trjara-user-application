@@ -8,6 +8,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { QueryProvider } from '@/components/query-provider'
 import { CapacitorHandler } from '@/components/capacitor-handler'
 import { PullToRefresh } from '@/components/pull-to-refresh'
+import { SpeedInsights } from "@vercel/speed-insights/next"
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -61,6 +62,7 @@ export default function RootLayout({
           <QueryProvider>
             <CartProvider>
               <CapacitorHandler />
+              <SpeedInsights />
               <PullToRefresh>
                 {children}
               </PullToRefresh>
