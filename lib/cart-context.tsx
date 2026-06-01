@@ -4,6 +4,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export interface CartItem {
   id: string;
+  productId?: string;
+  cartItemId?: string;
   name: string;
   price: number;
   category: string;
@@ -122,6 +124,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           for (const item of items) {
             await saveIndexedDBCartItem(item);
           }
+          if (typeof window !== 'undefined') {
+            if (items.length > 0) {
+              localStorage.setItem('cart_needs_sync', 'true');
+            } else {
+              localStorage.removeItem('cart_needs_sync');
+            }
+          }
         }
       }
     };
@@ -130,13 +139,54 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Monitor token and trigger sync upon login transition
   useEffect(() => {
+    const fetchAndSetBackendCart = async (authToken: string) => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/cart`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`,
+          },
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && resData.data?.items) {
+            const mappedItems = resData.data.items.map((item: any) => ({
+              id: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
+              productId: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
+              cartItemId: item._id,
+              name: item.name,
+              price: item.price,
+              category: item.category || 'Product',
+              image: item.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
+              quantity: item.quantity,
+              inventoryId: typeof item.inventoryId === 'object' && item.inventoryId ? item.inventoryId._id : item.inventoryId,
+            }));
+            setItems(mappedItems);
+            
+
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch backend cart:', error);
+      }
+    };
+
+    const loadFromIndexedDB = async () => {
+      const dbItems = await getIndexedDBCart();
+      setItems(dbItems);
+    };
+
     const checkAndSync = async () => {
       const localToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const needsSync = typeof window !== 'undefined' ? localStorage.getItem('cart_needs_sync') === 'true' : false;
+
       if (localToken) {
         const dbItems = await getIndexedDBCart();
-        if (dbItems.length > 0) {
+        if (needsSync && dbItems.length > 0) {
           try {
-            console.log('Detected login token and IndexedDB guest items, triggering synchronization...');
+            console.log('Detected login token and guest items needing sync, triggering synchronization...');
             const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/cart/add`, {
               method: 'POST',
               credentials: 'include',
@@ -154,19 +204,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
             if (response.ok) {
               console.log('Successfully synced guest items from IndexedDB to backend cart!');
+              if (typeof window !== 'undefined') {
+                localStorage.removeItem('cart_needs_sync');
+              }
               await clearIndexedDBCart();
-              setItems([]);
+              await fetchAndSetBackendCart(localToken);
             } else {
               console.error('Failed to sync guest items to backend cart:', await response.text());
+              await loadFromIndexedDB();
             }
           } catch (error) {
             console.error('Failed to sync guest items to backend cart:', error);
+            await loadFromIndexedDB();
           }
+        } else {
+          // No guest items to sync (cached items only or empty cart), fetch backend cart directly
+          await fetchAndSetBackendCart(localToken);
         }
       } else {
         // Load cart from IndexedDB if not logged in
-        const dbItems = await getIndexedDBCart();
-        setItems(dbItems);
+        await loadFromIndexedDB();
       }
       setMounted(true);
     };
@@ -177,27 +234,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', checkAndSync);
       window.addEventListener('login-success', checkAndSync);
+      window.addEventListener('cart-updated', loadFromIndexedDB);
       
       return () => {
         window.removeEventListener('storage', checkAndSync);
         window.removeEventListener('login-success', checkAndSync);
+        window.removeEventListener('cart-updated', loadFromIndexedDB);
       };
     }
   }, []);
 
   const addItem = async (item: Omit<CartItem, 'quantity'>, quantityToAdd: number = 1) => {
-    // 1. Update local storage cart
-    setItems((prevItems) => {
-      const existingItem = prevItems.find((i) => i.id === item.id);
-      if (existingItem) {
-        return prevItems.map((i) =>
-          i.id === item.id ? { ...i, quantity: i.quantity + quantityToAdd } : i
-        );
-      }
-      return [...prevItems, { ...item, quantity: quantityToAdd }];
-    });
-
-    // 2. Sync with backend if logged in
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     if (token) {
       try {
@@ -218,32 +265,155 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             ]
           }),
         });
-        if (!response.ok) {
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && resData.data?.items) {
+            const mappedItems = resData.data.items.map((it: any) => ({
+              id: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              productId: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              cartItemId: it._id,
+              name: it.name,
+              price: it.price,
+              category: it.category || 'Product',
+              image: it.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
+              quantity: it.quantity,
+              inventoryId: typeof it.inventoryId === 'object' && it.inventoryId ? it.inventoryId._id : it.inventoryId,
+            }));
+            setItems(mappedItems);
+            
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('cart-updated'));
+            }
+          }
+        } else {
           console.error('Failed to sync item to backend cart:', await response.text());
         }
       } catch (error) {
         console.error('Failed to sync item to backend cart:', error);
       }
+    } else {
+      // Guest Mode
+      setItems((prevItems) => {
+        const existingItem = prevItems.find((i) => i.id === item.id);
+        if (existingItem) {
+          return prevItems.map((i) =>
+            i.id === item.id ? { ...i, quantity: i.quantity + quantityToAdd } : i
+          );
+        }
+        return [...prevItems, { ...item, quantity: quantityToAdd }];
+      });
     }
   };
 
-  const removeItem = (id: string) => {
-    setItems((prevItems) => prevItems.filter((i) => i.id !== id));
-    deleteIndexedDBCartItem(id);
+  const removeItem = async (id: string) => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const targetItem = items.find((i) => i.id === id);
+    
+    if (token && targetItem && targetItem.cartItemId) {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/cart/item/${targetItem.cartItemId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && resData.data?.items) {
+            const mappedItems = resData.data.items.map((it: any) => ({
+              id: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              productId: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              cartItemId: it._id,
+              name: it.name,
+              price: it.price,
+              category: it.category || 'Product',
+              image: it.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
+              quantity: it.quantity,
+              inventoryId: typeof it.inventoryId === 'object' && it.inventoryId ? it.inventoryId._id : it.inventoryId,
+            }));
+            setItems(mappedItems);
+            
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('cart-updated'));
+            }
+          }
+        } else {
+          console.error('Failed to remove item from backend cart:', await response.text());
+        }
+      } catch (error) {
+        console.error('Failed to remove item from backend cart:', error);
+      }
+    } else {
+      setItems((prevItems) => prevItems.filter((i) => i.id !== id));
+      deleteIndexedDBCartItem(id);
+    }
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = async (id: string, quantity: number) => {
     if (quantity <= 0) {
       removeItem(id);
       return;
     }
-    setItems((prevItems) =>
-      prevItems.map((i) => (i.id === id ? { ...i, quantity } : i))
-    );
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    const targetItem = items.find((i) => i.id === id);
+
+    if (token && targetItem && targetItem.cartItemId) {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/cart/update-quantity`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            cartItemId: targetItem.cartItemId,
+            inventoryId: targetItem.inventoryId,
+            quantity,
+          }),
+        });
+
+        if (response.ok) {
+          const resData = await response.json();
+          if (resData.success && resData.data?.items) {
+            const mappedItems = resData.data.items.map((it: any) => ({
+              id: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              productId: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              cartItemId: it._id,
+              name: it.name,
+              price: it.price,
+              category: it.category || 'Product',
+              image: it.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
+              quantity: it.quantity,
+              inventoryId: typeof it.inventoryId === 'object' && it.inventoryId ? it.inventoryId._id : it.inventoryId,
+            }));
+            setItems(mappedItems);
+            
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('cart-updated'));
+            }
+          }
+        } else {
+          console.error('Failed to update quantity in backend cart:', await response.text());
+        }
+      } catch (error) {
+        console.error('Failed to update quantity in backend cart:', error);
+      }
+    } else {
+      setItems((prevItems) =>
+        prevItems.map((i) => (i.id === id ? { ...i, quantity } : i))
+      );
+    }
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
     setItems([]);
+    await clearIndexedDBCart();
   };
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);

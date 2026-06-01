@@ -3,7 +3,7 @@
 import { Search, MapPin, Bell, Heart, WifiOff, ChevronDown, Home as HomeIcon, Briefcase } from 'lucide-react';
 import { useState } from 'react';
 import { CategoryGrid } from './category-grid';
-import { usePWA } from '@/components/pwa-provider';
+import { useApp } from '@/components/pwa-provider';
 import { useQuery } from '@tanstack/react-query';
 import { fetchPrimaryAddressLabel, fetchAddresses } from '@/lib/api/user';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -15,7 +15,7 @@ interface AppHeaderEnhancedProps {
 
 export function AppHeaderEnhanced({ categories }: AppHeaderEnhancedProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const { isOffline } = usePWA();
+  const { isOffline } = useApp();
 
   const { data: primaryLabelResponse } = useQuery({
     queryKey: ['primary-address-label'],

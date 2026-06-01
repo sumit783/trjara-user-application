@@ -3,7 +3,7 @@ import { GeistSans } from 'geist/font/sans'
 import { GeistMono } from 'geist/font/mono'
 import { Analytics } from '@vercel/analytics/next'
 import { CartProvider } from '@/lib/cart-context'
-import { PWAProvider } from '@/components/pwa-provider'
+import { AppProvider } from '@/components/pwa-provider'
 import { Toaster } from '@/components/ui/sonner'
 import { QueryProvider } from '@/components/query-provider'
 import { CapacitorHandler } from '@/components/capacitor-handler'
@@ -57,7 +57,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`bg-background ${GeistSans.variable} ${GeistMono.variable}`} data-scroll-behavior="smooth">
       <body className="font-sans antialiased bg-background text-foreground">
-        <PWAProvider>
+        <AppProvider>
           <QueryProvider>
             <CartProvider>
               <CapacitorHandler />
@@ -68,7 +68,7 @@ export default function RootLayout({
               <Toaster />
             </CartProvider>
           </QueryProvider>
-        </PWAProvider>
+        </AppProvider>
       </body>
     </html>
   )

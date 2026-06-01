@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { MapPin, AlertCircle } from 'lucide-react';
+import { MapPin, AlertCircle, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface OrderSummaryProps {
@@ -16,8 +16,9 @@ interface OrderSummaryProps {
   distanceInfo: {
     totalDistance: number;
     message?: string;
+    deliveryTime?: number;
   } | null;
-  onCompleteBooking: () => void;
+  onCompleteBooking: (paymentMethod: 'ONLINE' | 'COD') => void;
   itemsCount: number;
   codInfo: {
     isCodAvailable: boolean;
@@ -25,6 +26,20 @@ interface OrderSummaryProps {
     codDisableReason: string;
   } | null;
 }
+
+const formatDeliveryTime = (mins?: number) => {
+  if (mins === undefined || mins === null) return '';
+  const roundedMins = Math.round(mins);
+  if (roundedMins <= 0) return '';
+  if (roundedMins < 60) {
+    return `${roundedMins} mins`;
+  }
+  const hrs = Math.floor(roundedMins / 60);
+  const remainingMins = roundedMins % 60;
+  const hh = String(hrs).padStart(2, '0');
+  const mm = String(remainingMins).padStart(2, '0');
+  return `${hh}:${mm}`;
+};
 
 export function OrderSummary({
   itemsTotal,
@@ -56,9 +71,15 @@ export function OrderSummary({
           {distanceInfo.totalDistance > 0 ? (
             <>
               <MapPin size={16} className="text-emerald-600 flex-shrink-0" />
-              <div>
+              <div className="flex-1">
                 <p className="font-extrabold">Delivery Address Verified</p>
                 <p className="opacity-90">Calculated delivery path covers {distanceInfo.totalDistance.toFixed(2)} km.</p>
+                {distanceInfo.deliveryTime !== undefined && distanceInfo.deliveryTime !== null && distanceInfo.deliveryTime > 0 && (
+                  <p className="mt-1 font-black text-emerald-700 flex items-center gap-1 text-[10px]">
+                    <Clock size={12} className="text-emerald-600 flex-shrink-0" />
+                    <span>Estimated Delivery: {formatDeliveryTime(distanceInfo.deliveryTime)}</span>
+                  </p>
+                )}
               </div>
             </>
           ) : (
@@ -142,6 +163,18 @@ export function OrderSummary({
             </span>
           </div>
         )}
+
+        {isBackendCartActive && distanceInfo && distanceInfo.deliveryTime !== undefined && distanceInfo.deliveryTime !== null && distanceInfo.deliveryTime > 0 && (
+          <div className="flex justify-between border-t border-dashed border-border pt-3 text-foreground">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground font-semibold">
+              <Clock size={14} className="text-primary flex-shrink-0" />
+              <span>Est. Delivery Time:</span>
+            </span>
+            <span className="font-black text-xs text-primary">
+              {formatDeliveryTime(distanceInfo.deliveryTime)}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Payment Method Selector */}
@@ -204,11 +237,11 @@ export function OrderSummary({
 
       <div className="space-y-2 pt-4">
         <Button
-          onClick={onCompleteBooking}
+          onClick={() => onCompleteBooking(paymentMethod === 'online' ? 'ONLINE' : 'COD')}
           disabled={itemsCount === 0}
           className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-bold h-12 rounded-xl shadow-sm text-sm"
         >
-          Complete Booking
+          Proceed to Checkout
         </Button>
 
         <Button

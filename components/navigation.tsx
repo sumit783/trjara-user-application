@@ -4,15 +4,19 @@ import Link from 'next/link';
 import { ShoppingCart, Menu, X, WifiOff } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { usePWA } from '@/components/pwa-provider';
+import { useApp } from '@/components/pwa-provider';
+
+import { useCart } from '@/lib/cart-context';
 
 interface NavigationProps {
-  cartCount: number;
+  cartCount?: number;
 }
 
 export function Navigation({ cartCount }: NavigationProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const { isOffline } = usePWA();
+  const { isOffline } = useApp();
+  const { items } = useCart();
+  const displayCount = items.length;
 
   return (
     <nav className="sticky top-0 z-50 border-b border-border bg-gradient-to-r from-primary to-accent">
@@ -63,9 +67,9 @@ export function Navigation({ cartCount }: NavigationProps) {
               className="text-white hover:bg-white/10 relative"
             >
               <ShoppingCart size={24} />
-              {cartCount > 0 && (
+              {displayCount > 0 && (
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                  {cartCount > 99 ? '99+' : cartCount}
+                  {displayCount > 99 ? '99+' : displayCount}
                 </span>
               )}
             </Button>

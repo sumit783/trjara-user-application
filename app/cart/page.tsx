@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BottomNavigation } from '@/components/bottom-navigation';
 import { AppHeader } from '@/components/app-header';
 import { useCart, clearIndexedDBCart, saveIndexedDBCartItem } from '@/lib/cart-context';
-import { fetchAddresses, addAddress } from '@/lib/api/user';
-import { ShoppingCart } from 'lucide-react';
+import { fetchAddresses, addAddress, fetchProfile } from '@/lib/api/user';
+import { ShoppingCart, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 // Subcomponents import
 import { CartItemRow } from '@/components/cart/cart-item-row';
@@ -88,12 +90,29 @@ const deleteBackendCartItem = async (cartItemId: string) => {
   return response.json();
 };
 
+// Dynamically load Razorpay SDK
+const loadRazorpayScript = () => {
+  return new Promise((resolve) => {
+    if (typeof window !== 'undefined' && (window as any).Razorpay) {
+      resolve(true);
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
+
 export default function CartPage() {
   const { items: localItems, removeItem, updateQuantity, clearCart, total: localTotal } = useCart();
   const [isMounted, setIsMounted] = useState(false);
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const [isSubmittingCheckout, setIsSubmittingCheckout] = useState(false);
 
   // Address check states
   const [addressModalOpen, setAddressModalOpen] = useState(false);
@@ -124,6 +143,14 @@ export default function CartPage() {
     enabled: !!token,
   });
 
+  // Fetch user profile for payment prefill
+  const { data: profileResponse } = useQuery({
+    queryKey: ['user-profile'],
+    queryFn: fetchProfile,
+    enabled: !!token,
+  });
+  const profile = profileResponse?.data;
+
   // Auto-open Address modal if logged-in user has 0 addresses
   useEffect(() => {
     if (token && addressesResponse?.success && (!addressesResponse.data || addressesResponse.data.length === 0)) {
@@ -140,40 +167,7 @@ export default function CartPage() {
     enabled: !!token,
   });
 
-  // Synchronize backend cart items with IndexedDB on load/sync
-  useEffect(() => {
-    const syncBackendToIndexedDB = async () => {
-      if (backendCartResponse?.success && backendCartResponse?.data?.items) {
-        const backendItems = backendCartResponse.data.items;
-        try {
-          // Clear IndexedDB completely to avoid any stale data
-          await clearIndexedDBCart();
-          
-          // Re-populate IndexedDB with active server items
-          for (const item of backendItems) {
-            const mappedItem = {
-              id: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
-              name: item.name,
-              price: item.price,
-              category: item.category || 'Product',
-              image: item.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
-              quantity: item.quantity,
-              inventoryId: typeof item.inventoryId === 'object' && item.inventoryId ? item.inventoryId._id : item.inventoryId,
-              variantOptions: item.inventoryId?.variantOptions || item.inventoryId?.variant?.options || null,
-            };
-            await saveIndexedDBCartItem(mappedItem);
-          }
-          console.log('IndexedDB cart successfully synchronized with backend data!');
-        } catch (error) {
-          console.error('Failed to synchronize backend cart to IndexedDB:', error);
-        }
-      }
-    };
 
-    if (token) {
-      syncBackendToIndexedDB();
-    }
-  }, [backendCartResponse, token]);
 
   // Mutation for updating cart item quantity
   const updateCartItemMutation = useMutation({
@@ -213,6 +207,7 @@ export default function CartPage() {
   const items = isBackendCartActive 
     ? backendCartResponse.data.items.map((item: any) => ({
         id: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
+        productId: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
         cartItemId: item._id,
         inventoryId: typeof item.inventoryId === 'object' && item.inventoryId ? item.inventoryId._id : item.inventoryId,
         name: item.name,
@@ -240,15 +235,138 @@ export default function CartPage() {
   const distanceInfo = isBackendCartActive ? backendCartResponse.data.distanceInfo : null;
   const codInfo = isBackendCartActive ? backendCartResponse.data.codInfo : null;
 
-  const handleBooking = () => {
-    setBookingConfirmed(true);
-    setTimeout(() => {
-      clearCart();
-      setBookingConfirmed(false);
-      if (token) {
-        queryClient.invalidateQueries({ queryKey: ['backend-cart'] });
+  const handleBooking = async (paymentMethod: 'ONLINE' | 'COD') => {
+    if (!token) {
+      toast.error('Please login to place an order.');
+      router.push('/profile');
+      return;
+    }
+
+    const defaultAddress = addressesResponse?.data?.find((a: any) => a.isDefault) || addressesResponse?.data?.[0];
+    const addressId = defaultAddress?._id;
+    if (!addressId) {
+      toast.error('Shipping address is required. Please add an address to continue.');
+      setAddressModalOpen(true);
+      return;
+    }
+
+    setIsSubmittingCheckout(true);
+
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/orders/checkout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          paymentMethod,
+          addressId,
+        }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        throw new Error(resData.message || 'Checkout failed');
       }
-    }, 3000);
+
+      if (paymentMethod === 'ONLINE') {
+        const isLoaded = await loadRazorpayScript();
+        if (!isLoaded) {
+          toast.error('Razorpay SDK failed to load. Please check your internet connection.');
+          setIsSubmittingCheckout(false);
+          return;
+        }
+
+        const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_SDgwHZdeZvhHnl';
+        
+        const options = {
+          key: keyId,
+          amount: resData.razorpayOrder.amount,
+          currency: resData.razorpayOrder.currency,
+          name: 'Trjara',
+          description: `Order ${resData.order.orderNumber}`,
+          order_id: resData.razorpayOrder.id,
+          prefill: {
+            name: profile?.name || '',
+            contact: profile?.phone || '',
+            email: profile?.email || '',
+          },
+          theme: {
+            color: '#4F46E5',
+          },
+          handler: async function (payResponse: any) {
+            try {
+              setIsSubmittingCheckout(true);
+              const verifyRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/orders/verify`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                  orderId: resData.order._id,
+                  razorpayOrderId: payResponse.razorpay_order_id,
+                  razorpayPaymentId: payResponse.razorpay_payment_id,
+                  razorpaySignature: payResponse.razorpay_signature,
+                }),
+              });
+
+              const verifyData = await verifyRes.json();
+              if (!verifyRes.ok || !verifyData.success) {
+                throw new Error(verifyData.message || 'Payment verification failed');
+              }
+
+              toast.success('Payment verified and order placed successfully!');
+              
+              setBookingConfirmed(true);
+              clearCart();
+              await clearIndexedDBCart();
+              queryClient.invalidateQueries({ queryKey: ['backend-cart'] });
+
+              setTimeout(() => {
+                setBookingConfirmed(false);
+                router.push('/profile/orders');
+              }, 3000);
+
+            } catch (error: any) {
+              console.error('Error during signature verification:', error);
+              toast.error(error.message || 'Payment verification failed.');
+            } finally {
+              setIsSubmittingCheckout(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              toast.error('Payment cancelled by user.');
+              setIsSubmittingCheckout(false);
+            },
+          },
+        };
+
+        const rzp = new (window as any).Razorpay(options);
+        rzp.open();
+      } else {
+        // COD Success
+        toast.success('Order placed successfully (Cash on Delivery)!');
+        setBookingConfirmed(true);
+        clearCart();
+        await clearIndexedDBCart();
+        queryClient.invalidateQueries({ queryKey: ['backend-cart'] });
+
+        setTimeout(() => {
+          setBookingConfirmed(false);
+          router.push('/profile/orders');
+        }, 3000);
+      }
+
+    } catch (error: any) {
+      console.error('Checkout failed:', error);
+      toast.error(error.message || 'Checkout failed. Please try again.');
+      setIsSubmittingCheckout(false);
+    }
   };
 
   const handleIncrement = async (itemId: string, inventoryId: string, cartItemId?: string, currentQuantity?: number) => {
@@ -374,7 +492,7 @@ export default function CartPage() {
         setIsDetectingLocation(false);
         alert(
           error.code === error.PERMISSION_DENIED
-            ? 'Native Location Access Denied. Please enable location permissions in your PWA browser or APK app settings.'
+            ? 'Native Location Access Denied. Please enable location permissions in your browser or app settings.'
             : 'Failed to acquire location. Please fill details manually.'
         );
       },
@@ -410,6 +528,20 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-background pb-24">
+      {isSubmittingCheckout && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/80 backdrop-blur-md">
+          <div className="flex flex-col items-center space-y-4 p-8 rounded-3xl bg-white/50 border border-border/50 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative w-16 h-16">
+              <div className="absolute inset-0 rounded-full border-4 border-primary/20 animate-pulse"></div>
+              <div className="absolute inset-0 rounded-full border-4 border-t-primary animate-spin"></div>
+            </div>
+            <div className="text-center">
+              <h3 className="text-lg font-black text-foreground">Processing Secure Checkout</h3>
+              <p className="text-xs font-semibold text-muted-foreground mt-1">Please do not refresh or close this window...</p>
+            </div>
+          </div>
+        </div>
+      )}
       <AppHeader />
 
       <div className="max-w-6xl mx-auto px-4 py-6 sm:py-12">

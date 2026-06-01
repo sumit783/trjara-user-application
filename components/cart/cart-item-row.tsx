@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
 
 interface CartItemRowProps {
   item: {
     id: string;
+    productId?: string;
     cartItemId?: string;
     inventoryId: string;
     name: string;
@@ -38,43 +39,45 @@ export function CartItemRow({
 
   return (
     <div className="flex gap-4 p-4 bg-white rounded-2xl border border-border hover:shadow-sm transition-all duration-300 relative group">
-      {/* Product Image */}
-      <div className="flex-shrink-0 w-24 h-24 bg-gray-50 rounded-xl overflow-hidden border border-black/5">
-        <img
-          src={item.image}
-          alt={item.name}
-          className="w-full h-full object-cover"
-        />
-      </div>
+      <Link href={`/product?id=${item.inventoryId || item.id}`} className="flex flex-1 gap-4 min-w-0 cursor-pointer">
+        {/* Product Image */}
+        <div className="flex-shrink-0 w-24 h-24 bg-gray-50 rounded-xl overflow-hidden border border-black/5">
+          <img
+            src={item.image}
+            alt={item.name}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+          />
+        </div>
 
-      {/* Product Info */}
-      <div className="flex-grow min-w-0 pr-8">
-        <h3 className="font-extrabold text-base text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
-          {item.name}
-        </h3>
-        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-          <span className="text-[10px] font-extrabold text-primary bg-primary/5 px-2.5 py-0.5 rounded-full inline-block uppercase tracking-wider">
-            {item.category}
-          </span>
-          {item.variantOptions && Object.entries(item.variantOptions).length > 0 &&
-            Object.entries(item.variantOptions).map(([key, value]) => (
-              <span key={key} className="text-[10px] font-bold text-muted-foreground bg-gray-100/80 px-2 py-0.5 rounded-full inline-block tracking-wide">
-                {key}: {value}
-              </span>
-            ))
-          }
-        </div>
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-base font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            ₹{item.price.toFixed(2)}
-          </span>
-          {item.mrp && item.mrp > item.price && (
-            <span className="text-xs text-muted-foreground line-through font-medium">
-              ₹{item.mrp.toFixed(2)}
+        {/* Product Info */}
+        <div className="flex-grow min-w-0 pr-8">
+          <h3 className="font-extrabold text-base text-foreground line-clamp-2 leading-snug group-hover:text-primary transition-colors">
+            {item.name}
+          </h3>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+            <span className="text-[10px] font-extrabold text-primary bg-primary/5 px-2.5 py-0.5 rounded-full inline-block uppercase tracking-wider">
+              {item.category}
             </span>
-          )}
+            {item.variantOptions && Object.entries(item.variantOptions).length > 0 &&
+              Object.entries(item.variantOptions).map(([key, value]) => (
+                <span key={key} className="text-[10px] font-bold text-muted-foreground bg-gray-100/80 px-2 py-0.5 rounded-full inline-block tracking-wide">
+                  {key}: {value}
+                </span>
+              ))
+            }
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <span className="text-base font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              ₹{item.price.toFixed(2)}
+            </span>
+            {item.mrp && item.mrp > item.price && (
+              <span className="text-xs text-muted-foreground line-through font-medium">
+                ₹{item.mrp.toFixed(2)}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </Link>
 
       {/* Quantity Controls */}
       <div className="flex flex-col items-end justify-between">

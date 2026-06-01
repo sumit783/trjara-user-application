@@ -4,12 +4,16 @@ import Link from 'next/link';
 import { Home, Grid3x3, ShoppingCart, User } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
+import { useCart } from '@/lib/cart-context';
+
 interface BottomNavigationProps {
-  cartCount: number;
+  cartCount?: number;
 }
 
 export function BottomNavigation({ cartCount }: BottomNavigationProps) {
   const pathname = usePathname();
+  const { items } = useCart();
+  const displayCount = items.length;
 
   const isActive = (path: string) => {
     if (path === '/' && pathname === '/') return true;
@@ -56,9 +60,9 @@ export function BottomNavigation({ cartCount }: BottomNavigationProps) {
           }`}
         >
           <ShoppingCart size={24} />
-          {cartCount > 0 && (
+          {displayCount > 0 && (
             <span className="absolute -top-1 -right-1 bg-primary text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-              {cartCount > 99 ? '99+' : cartCount}
+              {displayCount > 99 ? '99+' : displayCount}
             </span>
           )}
           <span className="text-xs font-medium">Cart</span>

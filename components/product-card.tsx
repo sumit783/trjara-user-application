@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Heart, Plus, Star, ShoppingCart } from 'lucide-react';
+import { Heart, Plus, Star, ShoppingCart, Loader2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCart } from '@/lib/cart-context';
 
@@ -34,6 +34,7 @@ export function ProductCard({
 }: ProductCardProps) {
   const { items } = useCart();
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const isInCart = items.some((item) => item.id === id || (inventoryId && item.inventoryId === inventoryId));
 
   // Generate a stable pseudo-random discount based on the product id string
@@ -112,13 +113,28 @@ export function ProductCard({
           </div>
 
           <button
-            onClick={() => onAddToCart({ id, inventoryId, name, price, category, image, rating })}
-            className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 shadow-md group-hover:scale-105 active:scale-95 flex-shrink-0 ${isInCart
+            onClick={async () => {
+              if (isLoading) return;
+              setIsLoading(true);
+              try {
+                await onAddToCart({ id, inventoryId, name, price, category, image, rating });
+              } catch (error) {
+                console.error(error);
+              } finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
+            className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 shadow-md group-hover:scale-105 active:scale-95 flex-shrink-0 ${isLoading
+                ? 'bg-gray-400 cursor-not-allowed text-white'
+                : isInCart
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 : 'bg-black hover:bg-primary text-white'
               }`}
           >
-            {isInCart ? (
+            {isLoading ? (
+              <Loader2 className="animate-spin sm:w-4 sm:h-4 text-white" size={16} />
+            ) : isInCart ? (
               <ShoppingCart size={16} className="sm:w-4 sm:h-4 animate-pulse" />
             ) : (
               <Plus size={16} className="sm:w-4 sm:h-4" />

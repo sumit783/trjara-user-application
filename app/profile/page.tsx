@@ -14,10 +14,10 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { useCart } from '@/lib/cart-context';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { User, Phone, Mail, Calendar, Shield, CheckCircle, XCircle, ArrowLeft, Loader2, Lock, ShieldCheck, Pencil, Camera, Upload } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Shield, CheckCircle, XCircle, ArrowLeft, Loader2, Lock, ShieldCheck, Pencil, Camera, Upload, Package, LogOut as LogOutIcon } from 'lucide-react';
 
 export default function ProfilePage() {
-  const { items } = useCart();
+  const { items, clearCart } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
   const queryClient = useQueryClient();
 
@@ -135,6 +135,9 @@ export default function ProfilePage() {
         setOtp('');
         setStep('phone');
         queryClient.invalidateQueries({ queryKey: ['user-profile'] });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('login-success'));
+        }
       } else {
         throw new Error('Authentication token not received');
       }
@@ -421,6 +424,15 @@ export default function ProfilePage() {
           <Button
             variant="default"
             className="w-full justify-start gap-2 h-11 rounded-xl text-base font-semibold shadow-md shadow-primary/15 hover:shadow-primary/25 transition-all hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
+            onClick={() => window.location.href = '/profile/orders'}
+          >
+            <Package className="h-4 w-4" />
+            My Orders
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2 h-11 rounded-xl text-base font-semibold border-border hover:bg-muted transition-all hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
             onClick={() => {
               setEditName(profile.name || '');
               setEditEmail(profile.email || '');
@@ -430,19 +442,24 @@ export default function ProfilePage() {
               setIsEditDialogOpen(true);
             }}
           >
-            <Pencil className="h-4 w-4" />
+            <Pencil className="h-4 w-4 text-primary" />
             Edit Profile
           </Button>
-
+ 
           <Button
             variant="outline"
             className="w-full justify-start gap-2 h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 cursor-pointer"
-            onClick={() => {
+            onClick={async () => {
               localStorage.removeItem('token');
+              await clearCart();
               queryClient.invalidateQueries({ queryKey: ['user-profile'] });
               toast.success('Logged out successfully');
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new Event('login-success'));
+              }
             }}
           >
+            <LogOutIcon className="h-4 w-4" />
             Log Out
           </Button>
         </div>

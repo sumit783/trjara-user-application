@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { User, Phone, Mail, Calendar, Shield, CheckCircle, XCircle, Pencil, LogOut } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Shield, CheckCircle, XCircle, Pencil, LogOut, Package } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -149,9 +149,18 @@ export function ProfileDetails({ profile, onEditClick, onLogOut }: ProfileDetail
         <Button
           variant="default"
           className="w-full justify-center gap-2 h-12.5 rounded-2xl text-base font-bold shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all hover:scale-[1.01] active:scale-[0.99] duration-300 cursor-pointer"
+          onClick={() => window.location.href = '/profile/orders'}
+        >
+          <Package className="h-4.5 w-4.5" />
+          My Purchase Orders
+        </Button>
+
+        <Button
+          variant="outline"
+          className="w-full justify-center gap-2 h-12.5 rounded-2xl text-base font-bold transition-all hover:scale-[1.01] active:scale-[0.99] duration-300 cursor-pointer border-border"
           onClick={onEditClick}
         >
-          <Pencil className="h-4.5 w-4.5" />
+          <Pencil className="h-4.5 w-4.5 text-primary" />
           Edit Account Profile
         </Button>
 

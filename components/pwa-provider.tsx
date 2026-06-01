@@ -1,69 +1,81 @@
 'use client';
-
+ 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-
-interface PWAContextType {
+ 
+interface AppContextType {
   isInstallable: boolean;
   isOffline: boolean;
-  installPWA: () => Promise<void>;
+  installApp: () => Promise<void>;
 }
-
-const PWAContext = createContext<PWAContextType>({
+ 
+const AppContext = createContext<AppContextType>({
   isInstallable: false,
   isOffline: false,
-  installPWA: async () => {},
+  installApp: async () => {},
 });
-
-export const usePWA = () => useContext(PWAContext);
-
-export function PWAProvider({ children }: { children: React.ReactNode }) {
+ 
+export const useApp = () => useContext(AppContext);
+ 
+export function AppProvider({ children }: { children: React.ReactNode }) {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isInstallable, setIsInstallable] = useState(false);
   const [isOffline, setIsOffline] = useState(false);
-
+ 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       setIsOffline(!window.navigator.onLine);
-
+ 
       const handleOnline = () => {
         setIsOffline(false);
         toast.success('Back online! Connection restored.', {
           duration: 3000,
         });
       };
-
+ 
       const handleOffline = () => {
         setIsOffline(true);
-        toast.error('You are offline. Running in PWA offline mode.', {
+        toast.error('You are offline. Running in offline mode.', {
           duration: 5000,
         });
       };
-
+ 
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
-
-      // Handle PWA install prompt
+ 
+      // Handle App install prompt
       const handleBeforeInstallPrompt = (e: Event) => {
         e.preventDefault();
         setDeferredPrompt(e);
         setIsInstallable(true);
       };
-
+ 
       window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
-      // Register Service Worker
+ 
+      // Register Service Worker in production only, and unregister in development to prevent HMR caching errors
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker
-          .register('/sw.js')
-          .then((registration) => {
-            console.log('PWA Service Worker registered successfully:', registration.scope);
-          })
-          .catch((error) => {
-            console.error('PWA Service Worker registration failed:', error);
+        if (process.env.NODE_ENV === 'production') {
+          navigator.serviceWorker
+            .register('/sw.js')
+            .then((registration) => {
+              console.log('App Service Worker registered successfully:', registration.scope);
+            })
+            .catch((error) => {
+              console.error('App Service Worker registration failed:', error);
+            });
+        } else {
+          navigator.serviceWorker.getRegistrations().then((registrations) => {
+            for (const registration of registrations) {
+              registration.unregister().then((success) => {
+                if (success) {
+                  console.log('Dev Service Worker unregistered successfully to allow fresh HMR chunks.');
+                }
+              });
+            }
           });
+        }
       }
-
+ 
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
@@ -71,24 +83,24 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       };
     }
   }, []);
-
-  const installPWA = async () => {
+ 
+  const installApp = async () => {
     if (!deferredPrompt) {
-      toast.info('PWA is already installed or not supported on this browser.');
+      toast.info('App is already installed or not supported on this browser.');
       return;
     }
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
       setIsInstallable(false);
-      toast.success('PWA installation accepted! Enjoy StyleHub app.');
+      toast.success('App installation accepted! Enjoy StyleHub app.');
     }
     setDeferredPrompt(null);
   };
-
+ 
   return (
-    <PWAContext.Provider value={{ isInstallable, isOffline, installPWA }}>
+    <AppContext.Provider value={{ isInstallable, isOffline, installApp }}>
       {children}
-    </PWAContext.Provider>
+    </AppContext.Provider>
   );
 }
