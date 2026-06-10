@@ -40,6 +40,27 @@ const formatDeliveryTime = (mins?: number) => {
   return `${hh}:${mm}`;
 };
 
+const getStoreInfo = (store: any) => {
+  if (typeof store === 'object' && store !== null) {
+    return {
+      id: store._id || '',
+      name: store.name || 'Local Shop',
+      logo: store.logo || null,
+      phone: store.phone || '',
+      address: store.address || '',
+      city: store.city || '',
+    };
+  }
+  return {
+    id: typeof store === 'string' ? store : '',
+    name: 'Local Shop',
+    logo: null,
+    phone: '',
+    address: '',
+    city: '',
+  };
+};
+
 export default function MyOrdersPage() {
   const { items } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -79,7 +100,7 @@ export default function MyOrdersPage() {
 
       toast.dismiss(loadingToastId);
 
-      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_SDgwHZdeZvhHnl';
+      const keyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
       const options = {
         key: keyId,
         amount: resData.razorpayOrder.amount,
@@ -178,24 +199,39 @@ export default function MyOrdersPage() {
             <Clock className="h-3 w-3" /> Order Placed
           </span>
         );
-      case 'shipped':
+      case 'order_packing':
         return (
           <span className="bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-amber-500/20 flex items-center gap-1">
-            <ArrowRight className="h-3 w-3" /> Shipped
+            <Package className="h-3 w-3 animate-pulse" /> Packing
           </span>
         );
+      case 'rider_assigned':
+        return (
+          <span className="bg-sky-500/10 text-sky-500 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-sky-500/20 flex items-center gap-1">
+            <Clock className="h-3 w-3" /> Rider Assigned
+          </span>
+        );
+      case 'order_ready_for_pickup':
+        return (
+          <span className="bg-violet-500/10 text-violet-500 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-violet-500/20 flex items-center gap-1">
+            <Store className="h-3 w-3" /> Ready for Pickup
+          </span>
+        );
+      case 'order_out_for_delivery':
       case 'out_for_delivery':
         return (
           <span className="bg-indigo-500/10 text-indigo-500 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-indigo-500/20 flex items-center gap-1">
-            <MapPin className="h-3 w-3" /> Out for Delivery
+            <MapPin className="h-3 w-3 animate-bounce" /> Out for Delivery
           </span>
         );
+      case 'order_delivered':
       case 'delivered':
         return (
           <span className="bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1">
             <CheckCircle className="h-3 w-3" /> Delivered
           </span>
         );
+      case 'order_cancelled':
       case 'cancelled':
       case 'canceled':
         return (
@@ -300,6 +336,9 @@ export default function MyOrdersPage() {
             day: 'numeric',
             year: 'numeric',
           });
+          const orderStores = order.stores || [];
+          const storesInfo = orderStores.map((s: any) => getStoreInfo(s.store));
+          const totalItemsCount = orderStores.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0);
 
           return (
             <div
@@ -333,20 +372,59 @@ export default function MyOrdersPage() {
               {/* Store & Price Overview */}
               <div className="p-4.5 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center border border-border/30 shadow-sm overflow-hidden p-0.5">
-                    {order.shopId?.logo ? (
-                      <img src={order.shopId.logo} alt={order.shopId.name} className="h-full w-full object-contain" />
-                    ) : (
-                      <Store className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Shop</p>
-                    <p className="text-sm font-bold text-foreground/90">{order.shopId?.name || 'Local Shop'}</p>
-                  </div>
+                  {storesInfo.length > 1 ? (
+                    <div className="flex items-center">
+                      <div className="flex -space-x-3 overflow-hidden">
+                        {storesInfo.slice(0, 3).map((store: any, idx: number) => (
+                          <div key={idx} className="inline-block h-10 w-10 rounded-xl bg-white border border-border/30 shadow-sm overflow-hidden p-0.5 relative z-[10] hover:z-20 transition-all duration-200">
+                            {store.logo ? (
+                              <img src={store.logo} alt={store.name} className="h-full w-full object-contain" />
+                            ) : (
+                              <Store className="h-5 w-5 text-muted-foreground m-auto" />
+                            )}
+                          </div>
+                        ))}
+                        {storesInfo.length > 3 && (
+                          <div className="inline-block h-10 w-10 rounded-xl bg-muted border border-border/30 shadow-sm flex items-center justify-center text-[10px] font-black text-muted-foreground z-0">
+                            +{storesInfo.length - 3}
+                          </div>
+                        )}
+                      </div>
+                      <div className="ml-3">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Shops</p>
+                        <p className="text-sm font-bold text-foreground/90 leading-tight line-clamp-1 max-w-[200px]">
+                          {storesInfo.map((s: any) => s.name).join(', ')}
+                        </p>
+                      </div>
+                    </div>
+                  ) : storesInfo.length === 1 ? (
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center border border-border/30 shadow-sm overflow-hidden p-0.5">
+                        {storesInfo[0].logo ? (
+                          <img src={storesInfo[0].logo} alt={storesInfo[0].name} className="h-full w-full object-contain" />
+                        ) : (
+                          <Store className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Shop</p>
+                        <p className="text-sm font-bold text-foreground/90">{storesInfo[0].name}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center border border-border/30 shadow-sm overflow-hidden p-0.5">
+                        <Store className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Shop</p>
+                        <p className="text-sm font-bold text-foreground/90">Local Shop</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="text-right">
+                <div className="text-right flex-shrink-0">
                   <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-0.5">Total Amount</p>
                   <p className="text-base font-black text-foreground">₹{order.pricing?.total?.toFixed(2)}</p>
                 </div>
@@ -360,7 +438,7 @@ export default function MyOrdersPage() {
                 >
                   <span className="flex items-center gap-1.5">
                     <Package className="h-3.5 w-3.5 text-primary animate-pulse" />
-                    <span>{order.items?.length || 0} {order.items?.length === 1 ? 'item' : 'items'} in order</span>
+                    <span>{totalItemsCount} {totalItemsCount === 1 ? 'item' : 'items'} in order</span>
                   </span>
                   <span className="flex items-center gap-1">
                     {isExpanded ? (
@@ -381,66 +459,75 @@ export default function MyOrdersPage() {
               {/* Expanded Detail Panel */}
               {isExpanded && (
                 <div className="px-4.5 pb-4.5 pt-1 border-t border-border/10 bg-muted/5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                  {/* Items List */}
-                  <div className="space-y-3 pt-2">
-                    {order.items?.map((item: any) => {
-                      // Extract variant options safely
-                      const variantDetails: { label: string; value: string }[] = [];
-                      
-                      // 1. Check item.variant (color, size, weight, etc.)
-                      if (item.variant) {
-                        Object.entries(item.variant).forEach(([key, val]) => {
-                          if (val && typeof val === 'string' && val.trim() !== '') {
-                            const label = key.charAt(0).toUpperCase() + key.slice(1);
-                            variantDetails.push({ label, value: val });
-                          }
-                        });
-                      }
-
-                      // 2. Check item.inventoryId?.variant?.options (ProductVariant level) as fallback
-                      if (item.inventoryId?.variant?.options) {
-                        const opts = item.inventoryId.variant.options;
-                        const optsEntries = opts instanceof Map 
-                          ? Array.from(opts.entries()) 
-                          : Object.entries(opts);
-                        
-                        optsEntries.forEach(([key, val]) => {
-                          if (val && typeof val === 'string' && val.trim() !== '') {
-                            const label = key.charAt(0).toUpperCase() + key.slice(1);
-                            // Avoid duplicate keys
-                            if (!variantDetails.some(detail => detail.label.toLowerCase() === key.toLowerCase())) {
-                              variantDetails.push({ label, value: val });
-                            }
-                          }
-                        });
-                      }
-                      
+                  {/* Grouped Items List by Store */}
+                  <div className="space-y-4 pt-2">
+                    {orderStores.map((storeEntry: any, storeIdx: number) => {
+                      const storeInfo = getStoreInfo(storeEntry.store);
                       return (
-                        <div key={item._id} className="flex gap-3 py-2.5 border-b border-border/10 last:border-b-0">
-                          <div className="h-12 w-12 rounded-xl border border-border/20 overflow-hidden flex-shrink-0 bg-white">
-                            <img src={item.image || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=80&h=80&fit=crop'} alt={item.name} className="h-full w-full object-cover" />
+                        <div key={storeIdx} className="space-y-2 border-b border-border/10 pb-3 last:border-b-0 last:pb-0">
+                          <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                            <Store className="h-3.5 w-3.5 text-primary" />
+                            <span>{storeInfo.name}</span>
                           </div>
-                          <div className="flex-1 space-y-0.5">
-                            <h4 className="font-bold text-xs text-foreground/90 line-clamp-1 leading-normal">{item.name}</h4>
-                            
-                            {variantDetails.length > 0 && (
-                              <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                                {variantDetails.map((detail, index) => (
-                                  <span key={index} className="bg-muted px-2 py-0.5 rounded text-[10px] text-muted-foreground font-semibold">
-                                    {detail.label}: {detail.value}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
+                          <div className="space-y-3 pl-1.5">
+                            {storeEntry.items?.map((item: any) => {
+                              const variantDetails: { label: string; value: string }[] = [];
+                              
+                              if (item.variant) {
+                                Object.entries(item.variant).forEach(([key, val]) => {
+                                  if (val && typeof val === 'string' && val.trim() !== '') {
+                                    const label = key.charAt(0).toUpperCase() + key.slice(1);
+                                    variantDetails.push({ label, value: val });
+                                  }
+                                });
+                              }
 
-                            <div className="flex items-center justify-between pt-0.5">
-                              <span className="text-[10px] font-bold text-muted-foreground/95">
-                                ₹{item.price} × {item.quantity}
-                              </span>
-                              <span className="text-xs font-black text-foreground">
-                                ₹{item.total || (item.price * item.quantity)}
-                              </span>
-                            </div>
+                              if (item.inventoryId?.variant?.options) {
+                                const opts = item.inventoryId.variant.options;
+                                const optsEntries = opts instanceof Map 
+                                  ? Array.from(opts.entries()) 
+                                  : Object.entries(opts);
+                                
+                                optsEntries.forEach(([key, val]) => {
+                                  if (val && typeof val === 'string' && val.trim() !== '') {
+                                    const label = key.charAt(0).toUpperCase() + key.slice(1);
+                                    if (!variantDetails.some(detail => detail.label.toLowerCase() === key.toLowerCase())) {
+                                      variantDetails.push({ label, value: val });
+                                    }
+                                  }
+                                });
+                              }
+
+                              return (
+                                <div key={item._id} className="flex gap-3 py-1 last:border-b-0">
+                                  <div className="h-12 w-12 rounded-xl border border-border/20 overflow-hidden flex-shrink-0 bg-white">
+                                    <img src={item.image || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=80&h=80&fit=crop'} alt={item.name} className="h-full w-full object-cover" />
+                                  </div>
+                                  <div className="flex-1 space-y-0.5">
+                                    <h4 className="font-bold text-xs text-foreground/90 line-clamp-1 leading-normal">{item.name}</h4>
+                                    
+                                    {variantDetails.length > 0 && (
+                                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                        {variantDetails.map((detail, index) => (
+                                          <span key={index} className="bg-muted px-2 py-0.5 rounded text-[10px] text-muted-foreground font-semibold">
+                                            {detail.label}: {detail.value}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    <div className="flex items-center justify-between pt-0.5">
+                                      <span className="text-[10px] font-bold text-muted-foreground/95">
+                                        ₹{item.price} × {item.quantity}
+                                      </span>
+                                      <span className="text-xs font-black text-foreground">
+                                        ₹{item.total || (item.price * item.quantity)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );

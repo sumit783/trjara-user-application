@@ -8,8 +8,8 @@ import { BottomNavigation } from '@/components/bottom-navigation';
 import { useCart } from '@/lib/cart-context';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  ArrowLeft, Clock, MapPin, Store, CreditCard, Package, Calendar, 
+import {
+  ArrowLeft, Clock, MapPin, Store, CreditCard, Package, Calendar,
   Phone, Navigation, CheckCircle, ShieldCheck, Info
 } from 'lucide-react';
 
@@ -26,6 +26,33 @@ const formatDeliveryTime = (mins?: number) => {
   const hh = String(hrs).padStart(2, '0');
   const mm = String(remainingMins).padStart(2, '0');
   return `${hh}:${mm}`;
+};
+
+const getStoreInfo = (store: any) => {
+  if (typeof store === 'object' && store !== null) {
+    return {
+      id: store._id || '',
+      name: store.name || 'Local Shop',
+      logo: store.logo || null,
+      phone: store.phone || '',
+      address: store.address || '',
+      city: store.city || '',
+      state: store.state || '',
+      pincode: store.pincode || '',
+      banner: store.banner || null
+    };
+  }
+  return {
+    id: typeof store === 'string' ? store : '',
+    name: 'Local Shop',
+    logo: null,
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    banner: null
+  };
 };
 
 export function OrderDetailsClient({ orderId }: { orderId: string }) {
@@ -113,6 +140,8 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
   }
 
   const order = orderResponse.order;
+  const orderStores = order.stores || [];
+  const storesInfo = orderStores.map((s: any) => getStoreInfo(s.store));
 
   // Extract variables
   const placedDate = new Date(order.placedAt || order.createdAt).toLocaleDateString('en-US', {
@@ -123,7 +152,8 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
     minute: '2-digit'
   });
 
-  const shopCoords = order.shopId?.location?.coordinates || null;
+  const firstStoreWithCoords = orderStores.find((s: any) => s.store && typeof s.store === 'object' && s.store.location?.coordinates);
+  const shopCoords = firstStoreWithCoords?.store?.location?.coordinates || null;
   const customerCoords = order.addressId?.location?.coordinates || null;
 
   // Google Maps direction link helper
@@ -136,23 +166,27 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
 
   // Status mapping
   const statusSteps = [
-    { key: 'placed', label: 'Order Placed', desc: 'Awaiting shop confirmation' },
-    { key: 'shipped', label: 'Shipped', desc: 'Item handoff completed' },
-    { key: 'out_for_delivery', label: 'Out for Delivery', desc: 'Rider is on the way' },
-    { key: 'delivered', label: 'Delivered', desc: 'Package received safely' }
+    { key: 'order_placed', label: 'Order Placed', desc: 'Awaiting shop confirmation' },
+    { key: 'order_packing', label: 'Packing Items', desc: 'Store is preparing your items' },
+    { key: 'rider_assigned', label: 'Rider Assigned', desc: 'Rider is heading to the store' },
+    { key: 'order_ready_for_pickup', label: 'Ready for Pickup', desc: 'Packed and waiting for pickup' },
+    { key: 'order_out_for_delivery', label: 'Out for Delivery', desc: 'Rider is on the way' },
+    { key: 'order_delivered', label: 'Delivered', desc: 'Package received safely' }
   ];
 
   const getActiveStatusIndex = (currentStatus: string) => {
     const status = currentStatus?.toLowerCase();
     if (status === 'order_placed' || status === 'placed') return 0;
-    if (status === 'shipped') return 1;
-    if (status === 'out_for_delivery') return 2;
-    if (status === 'delivered') return 3;
+    if (status === 'order_packing') return 1;
+    if (status === 'rider_assigned') return 2;
+    if (status === 'order_ready_for_pickup') return 3;
+    if (status === 'order_out_for_delivery' || status === 'out_for_delivery') return 4;
+    if (status === 'order_delivered' || status === 'delivered') return 5;
     return -1;
   };
 
   const activeIndex = getActiveStatusIndex(order.status);
-  const isCancelled = order.status?.toLowerCase() === 'cancelled' || order.status?.toLowerCase() === 'canceled';
+  const isCancelled = order.status?.toLowerCase() === 'cancelled' || order.status?.toLowerCase() === 'canceled' || order.status?.toLowerCase() === 'order_cancelled';
 
   return (
     <div className="min-h-screen bg-background pb-28 animate-in fade-in duration-300">
@@ -221,7 +255,7 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
         {!isCancelled && (
           <div className="bg-white border border-border/40 rounded-3xl p-6 shadow-lg space-y-6">
             <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Delivery Journey</h3>
-            
+
             <div className="relative pl-7 space-y-6 border-l-2 border-border/40 ml-2.5">
               {statusSteps.map((step, idx) => {
                 const isPassed = idx <= activeIndex;
@@ -230,11 +264,10 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
                 return (
                   <div key={step.key} className="relative">
                     {/* Visual dot indicator */}
-                    <div className={`absolute -left-[39px] top-1.5 h-6 w-6 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
-                      isPassed 
-                        ? 'bg-primary border-primary text-white scale-110 shadow-md shadow-primary/20' 
+                    <div className={`absolute -left-[39px] top-1.5 h-6 w-6 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${isPassed
+                        ? 'bg-primary border-primary text-white scale-110 shadow-md shadow-primary/20'
                         : 'bg-white border-border/60 text-muted-foreground'
-                    }`}>
+                      }`}>
                       {isPassed ? (
                         <CheckCircle className="h-4.5 w-4.5 stroke-[2.5]" />
                       ) : (
@@ -259,23 +292,27 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
         {order.addressId && (
           <div className="bg-white border border-border/40 rounded-3xl p-6 shadow-lg space-y-5">
             <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Route & Geolocation</h3>
-            
+
             <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center flex-shrink-0">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                    <Store className="h-4.5 w-4.5 text-primary" />
+              {storesInfo.map((store: any, idx: number) => (
+                <div key={idx} className="flex gap-3">
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                      <Store className="h-4.5 w-4.5 text-primary" />
+                    </div>
+                    <div className="w-0.5 h-12 border-dashed border-border/80 border-l-2 my-1" />
                   </div>
-                  <div className="w-0.5 h-12 border-dashed border-border/80 border-l-2 my-1" />
+                  <div className="pt-0.5">
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                      Pickup Point {storesInfo.length > 1 ? `#${idx + 1}` : ''}
+                    </span>
+                    <h4 className="text-xs font-black text-foreground mt-0.5">{store.name}</h4>
+                    <p className="text-xs text-muted-foreground font-semibold mt-0.5">
+                      {[store.address, store.city, store.state, store.pincode].filter(Boolean).join(', ') || 'Address not available'}
+                    </p>
+                  </div>
                 </div>
-                <div className="pt-0.5">
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Pickup Point</span>
-                  <h4 className="text-xs font-black text-foreground mt-0.5">{order.shopId?.name || 'Local Shop'}</h4>
-                  <p className="text-xs text-muted-foreground font-semibold mt-0.5">
-                    {order.shopId?.address}, {order.shopId?.city}, {order.shopId?.state} {order.shopId?.pincode}
-                  </p>
-                </div>
-              </div>
+              ))}
 
               <div className="flex gap-3">
                 <div className="h-8 w-8 rounded-full bg-emerald-50 flex items-center justify-center border border-emerald-100 flex-shrink-0">
@@ -303,93 +340,104 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
           </div>
         )}
 
-        {/* Shop details overview */}
-        {order.shopId && (
-          <div className="bg-white border border-border/40 rounded-3xl overflow-hidden shadow-lg">
-            {order.shopId.banner && (
-              <div className="h-28 w-full overflow-hidden relative border-b border-border/10">
-                <img src={order.shopId.banner} alt={order.shopId.name} className="h-full w-full object-cover" />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-              </div>
-            )}
-            <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="h-12 w-12 rounded-xl bg-white border border-border/20 shadow-sm flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0">
-                  {order.shopId.logo ? (
-                    <img src={order.shopId.logo} alt={order.shopId.name} className="h-full w-full object-contain" />
-                  ) : (
-                    <Store className="h-6 w-6 text-muted-foreground" />
-                  )}
-                </div>
-                <div>
-                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Fulfillment Partner</span>
-                  <h4 className="text-sm font-black text-foreground mt-0.5">{order.shopId.name}</h4>
-                </div>
-              </div>
+        {/* Stores and their corresponding Items */}
+        <div className="space-y-6">
+          {orderStores.map((storeEntry: any, storeIdx: number) => {
+            const storeInfo = getStoreInfo(storeEntry.store);
 
-              {order.shopId.phone && (
-                <div className="flex gap-2">
-                  <Button asChild variant="outline" className="flex-1 border-border/40 hover:bg-muted text-foreground font-bold h-10 rounded-xl text-xs cursor-pointer">
-                    <a href={`tel:${order.shopId.phone}`} className="flex items-center justify-center gap-1.5">
-                      <Phone size={13} />
-                      <span>Call Partner Shop</span>
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Detailed Items list */}
-        <div className="bg-white border border-border/40 rounded-3xl p-6 shadow-lg space-y-4">
-          <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Items Ordered</h3>
-          <div className="space-y-3.5 pt-1">
-            {order.items?.map((item: any) => {
-              const variantDetails: string[] = [];
-              if (item.variant) {
-                Object.entries(item.variant).forEach(([key, val]) => {
-                  if (val && typeof val === 'string' && val.trim() !== '') {
-                    variantDetails.push(`${key}: ${val}`);
-                  }
-                });
-              }
-
-              return (
-                <div key={item._id} className="flex gap-3 py-2 border-b border-border/10 last:border-b-0">
-                  <div className="h-12 w-12 rounded-xl border border-border/20 overflow-hidden flex-shrink-0 bg-white">
-                    <img src={item.image || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=80&h=80&fit=crop'} alt={item.name} className="h-full w-full object-cover" />
+            return (
+              <div key={storeIdx} className="bg-white border border-border/40 rounded-3xl overflow-hidden shadow-lg space-y-4">
+                {/* Store Banner */}
+                {storeInfo.banner && (
+                  <div className="h-28 w-full overflow-hidden relative border-b border-border/10">
+                    <img src={storeInfo.banner} alt={storeInfo.name} className="h-full w-full object-cover" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-xs text-foreground/90 truncate leading-normal">{item.name}</h4>
-                    {variantDetails.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {variantDetails.map((detail, idx) => (
-                          <span key={idx} className="bg-muted px-1.5 py-0.5 rounded text-[9px] text-muted-foreground font-bold">
-                            {detail}
-                          </span>
-                        ))}
+                )}
+
+                {/* Store Branding Header */}
+                <div className="p-6 pb-2 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-xl bg-white border border-border/20 shadow-sm flex items-center justify-center overflow-hidden p-0.5 flex-shrink-0">
+                        {storeInfo.logo ? (
+                          <img src={storeInfo.logo} alt={storeInfo.name} className="h-full w-full object-contain" />
+                        ) : (
+                          <Store className="h-6 w-6 text-muted-foreground" />
+                        )}
                       </div>
-                    )}
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] font-bold text-muted-foreground/95">
-                        ₹{item.price} × {item.quantity}
-                      </span>
-                      <span className="text-xs font-black text-foreground">
-                        ₹{item.total || (item.price * item.quantity)}
-                      </span>
+                      <div>
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                          Fulfillment Partner {orderStores.length > 1 ? `#${storeIdx + 1}` : ''}
+                        </span>
+                        <h4 className="text-sm font-black text-foreground mt-0.5">{storeInfo.name}</h4>
+                      </div>
                     </div>
+
+                    {storeInfo.phone && (
+                      <Button asChild variant="outline" className="border-border/40 hover:bg-muted text-foreground font-bold h-9 rounded-xl text-xs cursor-pointer px-4">
+                        <a href={`tel:${storeInfo.phone}`} className="flex items-center gap-1.5">
+                          <Phone size={13} />
+                          <span>Call Shop</span>
+                        </a>
+                      </Button>
+                    )}
                   </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Items from this store */}
+                <div className="px-6 pb-6 pt-2 border-t border-border/5 space-y-3">
+                  <h5 className="text-[11px] font-black uppercase tracking-wider text-muted-foreground/80 mb-2">Items from this store</h5>
+                  <div className="space-y-3.5">
+                    {storeEntry.items?.map((item: any) => {
+                      const variantDetails: string[] = [];
+                      if (item.variant) {
+                        Object.entries(item.variant).forEach(([key, val]) => {
+                          if (val && typeof val === 'string' && val.trim() !== '') {
+                            variantDetails.push(`${key}: ${val}`);
+                          }
+                        });
+                      }
+
+                      return (
+                        <div key={item._id} className="flex gap-3 py-2 border-b border-border/5 last:border-b-0 last:pb-0">
+                          <div className="h-12 w-12 rounded-xl border border-border/20 overflow-hidden flex-shrink-0 bg-white">
+                            <img src={item.image || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=80&h=80&fit=crop'} alt={item.name} className="h-full w-full object-cover" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-xs text-foreground/90 truncate leading-normal">{item.name}</h4>
+                            {variantDetails.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {variantDetails.map((detail, idx) => (
+                                  <span key={idx} className="bg-muted px-1.5 py-0.5 rounded text-[9px] text-muted-foreground font-bold">
+                                    {detail}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-between mt-1">
+                              <span className="text-[10px] font-bold text-muted-foreground/95">
+                                ₹{item.price} × {item.quantity}
+                              </span>
+                              <span className="text-xs font-black text-foreground">
+                                ₹{item.total || (item.price * item.quantity)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Cost and Payment Breakdown */}
         <div className="bg-white border border-border/40 rounded-3xl p-6 shadow-lg space-y-4">
           <h3 className="text-sm font-black uppercase tracking-wider text-foreground">Payment Summary</h3>
-          
+
           <div className="space-y-2.5 text-xs font-semibold text-muted-foreground">
             <div className="flex items-center justify-between">
               <span>Items Subtotal</span>
@@ -405,7 +453,7 @@ export function OrderDetailsClient({ orderId }: { orderId: string }) {
                 <span>-₹{order.pricing.discount.toFixed(2)}</span>
               </div>
             )}
-            
+
             <div className="border-t border-border/30 pt-3 flex items-center justify-between text-sm font-black">
               <span className="text-foreground">Grand Total</span>
               <span className="text-primary text-base">₹{order.pricing?.total?.toFixed(2) || '0.00'}</span>
