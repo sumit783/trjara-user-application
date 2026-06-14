@@ -109,6 +109,7 @@ export function PromoCarousel() {
         {banners.map((_, index) => (
           <button
             key={index}
+            suppressHydrationWarning
             onClick={() => emblaApi?.scrollTo(index)}
             className={`h-2 rounded-full transition-all duration-300 ${
               selectedIndex === index ? 'w-6 bg-primary' : 'w-2 bg-gray-300'
