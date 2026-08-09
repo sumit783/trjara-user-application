@@ -140,3 +140,56 @@ export const addAddress = async (body: {
   return response.json();
 };
 
+export const updateAddress = async (addressId: string, body: any) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    throw new Error('No token found. Please login to update address.');
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/address/${addressId}`, {
+    method: 'PUT',
+    credentials: 'include',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to update address');
+  }
+  return response.json();
+};
+
+export const deleteAddress = async (addressId: string) => {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    throw new Error('No token found. Please login to delete address.');
+  }
+
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/address/${addressId}`, {
+    method: 'DELETE',
+    credentials: 'include',
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || 'Failed to delete address');
+  }
+  return response.json();
+};
+

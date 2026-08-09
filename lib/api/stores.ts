@@ -1,9 +1,19 @@
-export const fetchTopStoreLogos = async () => {
-  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/top-store-logos`);
+export const fetchTopStoreLogos = async (lat?: number, lng?: number) => {
+  const queryParams = new URLSearchParams();
+  if (lat) queryParams.append('lat', lat.toString());
+  if (lng) queryParams.append('lng', lng.toString());
+  
+  const queryString = queryParams.toString();
+  const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/top-store-logos${queryString ? `?${queryString}` : ''}`);
+  
+  const data = await response.json();
   if (!response.ok) {
-    throw new Error('Network response was not ok');
+    throw new Error(data.message || 'Network response was not ok');
   }
-  return response.json();
+  if (!data.success && data.errorCode === "OUT_OF_SERVICE_AREA") {
+    throw new Error(data.message || "Sorry, we don't provide service in your area");
+  }
+  return data;
 };
 
 export interface FetchStoresParams {
@@ -11,6 +21,8 @@ export interface FetchStoresParams {
   category?: string;
   page?: number;
   limit?: number;
+  lat?: number;
+  lng?: number;
 }
 
 export interface StoreResponse {
@@ -40,15 +52,21 @@ export const fetchStores = async (params: FetchStoresParams = {}): Promise<Store
   if (params.category) queryParams.append('category', params.category);
   if (params.page) queryParams.append('page', params.page.toString());
   if (params.limit) queryParams.append('limit', params.limit.toString());
+  if (params.lat) queryParams.append('lat', params.lat.toString());
+  if (params.lng) queryParams.append('lng', params.lng.toString());
 
   const queryString = queryParams.toString();
   const url = `${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/stores${queryString ? `?${queryString}` : ''}`;
 
   const response = await fetch(url);
+  const data = await response.json();
   if (!response.ok) {
-    throw new Error('Network response was not ok');
+    throw new Error(data.message || 'Network response was not ok');
   }
-  return response.json();
+  if (!data.success && data.errorCode === "OUT_OF_SERVICE_AREA") {
+    throw new Error(data.message || "Sorry, we don't provide service in your area");
+  }
+  return data;
 };
 
 export interface StoreDetailsResponse {

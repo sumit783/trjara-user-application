@@ -9,6 +9,7 @@ import { ChevronRight } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { fetchProductsByCategory } from '@/lib/api/categories';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useLocation } from '@/lib/location-context';
 
 export function CategoryClient({ categoryId }: { categoryId: string }) {
   const { items, addItem } = useCart();
@@ -17,11 +18,13 @@ export function CategoryClient({ categoryId }: { categoryId: string }) {
 
   const [products, setProducts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const { location } = useLocation();
 
   useEffect(() => {
     const getProducts = async () => {
       try {
-        const result = await fetchProductsByCategory(categoryId);
+        const result = await fetchProductsByCategory(categoryId, location?.lat, location?.lng);
         if (result.success) {
           setProducts(result.data);
         }
@@ -32,7 +35,7 @@ export function CategoryClient({ categoryId }: { categoryId: string }) {
       }
     };
     getProducts();
-  }, [categoryId]);
+  }, [categoryId, location?.lat, location?.lng]);
 
   const categoryName = category?.name || products[0]?.category || 'Category';
 

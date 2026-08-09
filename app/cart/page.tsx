@@ -61,9 +61,21 @@ const updateBackendCartItemQuantity = async (
       quantity,
     }),
   });
-
   if (!response.ok) {
-    throw new Error('Failed to update backend cart');
+    let errorMessage = `Failed to update backend cart. Status: ${response.status} ${response.statusText}`;
+    try {
+      const errorText = await response.text();
+      console.error('Backend cart update error response:', errorText);
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch (e) {
+        // Not JSON
+      }
+    } catch (e) {
+      console.error('Failed to read error response text');
+    }
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -113,6 +125,7 @@ export default function CartPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const [isSubmittingCheckout, setIsSubmittingCheckout] = useState(false);
+  const [useWallet, setUseWallet] = useState(false);
 
   // Address check states
   const [addressModalOpen, setAddressModalOpen] = useState(false);
@@ -150,6 +163,21 @@ export default function CartPage() {
     enabled: !!token,
   });
   const profile = profileResponse?.data;
+
+  // Fetch Wallet Balance
+  const { data: walletResponse } = useQuery({
+    queryKey: ['wallet'],
+    queryFn: async () => {
+      const storedToken = localStorage.getItem('token');
+      if (!storedToken) return null;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URI}/api/customer/wallet`, {
+        headers: { Authorization: `Bearer ${storedToken}` }
+      });
+      return res.json();
+    },
+    enabled: !!token,
+  });
+  const walletBalance = walletResponse?.data?.wallet?.balance || 0;
 
   // Auto-open Address modal if logged-in user has 0 addresses
   useEffect(() => {
@@ -228,14 +256,15 @@ export default function CartPage() {
   const platformCharge = isBackendCartActive ? backendCartResponse.data.cart.platformCharge : 0;
   const smallCartCharge = isBackendCartActive ? backendCartResponse.data.cart.smallCartCharge : 0;
   const discountAmount = isBackendCartActive ? backendCartResponse.data.cart.discountAmount : 0;
+  
   const totalAmount = isBackendCartActive 
-    ? backendCartResponse.data.cart.totalAmount 
+    ? backendCartResponse.data.cart.totalAmount
     : localTotal + (localTotal > 0 ? (localTotal * 0.1) : 0);
 
   const distanceInfo = isBackendCartActive ? backendCartResponse.data.distanceInfo : null;
   const codInfo = isBackendCartActive ? backendCartResponse.data.codInfo : null;
 
-  const handleBooking = async (paymentMethod: 'ONLINE' | 'COD') => {
+  const handleBooking = async (paymentMethod: 'ONLINE' | 'COD' | 'WALLET') => {
     if (!token) {
       toast.error('Please login to place an order.');
       router.push('/profile');
@@ -263,6 +292,7 @@ export default function CartPage() {
         body: JSON.stringify({
           paymentMethod,
           addressId,
+          useWallet,
         }),
       });
 
@@ -619,6 +649,9 @@ export default function CartPage() {
                 onCompleteBooking={handleBooking}
                 itemsCount={items.length}
                 codInfo={codInfo}
+                useWallet={useWallet}
+                setUseWallet={setUseWallet}
+                walletBalance={walletBalance}
               />
             </div>
           </div>

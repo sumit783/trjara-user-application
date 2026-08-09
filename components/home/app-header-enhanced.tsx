@@ -4,10 +4,12 @@ import { Search, MapPin, Bell, Heart, WifiOff, ChevronDown, Home as HomeIcon, Br
 import { useState } from 'react';
 import { CategoryGrid } from './category-grid';
 import { useApp } from '@/components/pwa-provider';
-import { useQuery } from '@tanstack/react-query';
-import { fetchPrimaryAddressLabel, fetchAddresses } from '@/lib/api/user';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchPrimaryAddressLabel, fetchAddresses, updateAddress } from '@/lib/api/user';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { useLocation } from '@/lib/location-context';
 
 interface AppHeaderEnhancedProps {
   categories: any[];
@@ -16,6 +18,8 @@ interface AppHeaderEnhancedProps {
 export function AppHeaderEnhanced({ categories }: AppHeaderEnhancedProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const { isOffline } = useApp();
+  const queryClient = useQueryClient();
+  const { refreshAddressLocation } = useLocation();
 
   const { data: primaryLabelResponse } = useQuery({
     queryKey: ['primary-address-label'],
@@ -35,6 +39,18 @@ export function AppHeaderEnhanced({ categories }: AppHeaderEnhancedProps) {
   const displayLabel = primaryLabel
     ? primaryLabel.charAt(0).toUpperCase() + primaryLabel.slice(1)
     : 'Add your address';
+
+  const handleSetDefault = async (addressId: string) => {
+    try {
+      await updateAddress(addressId, { isDefault: true });
+      toast.success('Default delivery address updated');
+      queryClient.invalidateQueries({ queryKey: ['addresses'] });
+      queryClient.invalidateQueries({ queryKey: ['primary-address-label'] });
+      refreshAddressLocation();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update delivery address');
+    }
+  };
 
   return (
     <div className="relative">
@@ -118,9 +134,10 @@ export function AppHeaderEnhanced({ categories }: AppHeaderEnhancedProps) {
                       return (
                         <div
                           key={addr._id}
+                          onClick={() => !addr.isDefault && handleSetDefault(addr._id)}
                           className={`flex gap-3 p-4 rounded-2xl transition-all duration-300 ${addr.isDefault
-                            ? 'bg-primary/10'
-                            : 'bg-white/5'
+                            ? 'bg-primary/10 border border-primary/50 shadow-[0_0_15px_rgba(255,107,0,0.1)]'
+                            : 'bg-white/5 hover:bg-white/10 cursor-pointer border border-transparent'
                             }`}
                         >
                           <div className="flex-shrink-0 h-10 w-10 rounded-xl bg-white/10 flex items-center justify-center text-primary mt-0.5">
@@ -154,6 +171,10 @@ export function AppHeaderEnhanced({ categories }: AppHeaderEnhancedProps) {
                         </div>
                       );
                     })}
+
+                    <Link href="/profile/addresses" className="mt-4 flex items-center justify-center h-10 w-full rounded-xl text-sm font-bold bg-white/10 hover:bg-white/20 text-white transition-all">
+                      Manage Addresses
+                    </Link>
                   </div>
                 )}
               </div>

@@ -18,7 +18,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchStores } from '@/lib/api/stores';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-
+import { useLocation } from '@/lib/location-context';
 export default function StoresPage() {
   const { items } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -28,9 +28,11 @@ export default function StoresPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 9;
 
+  const { location } = useLocation();
+
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['stores', activeSearch, currentPage],
-    queryFn: () => fetchStores({ search: activeSearch, page: currentPage, limit: itemsPerPage }),
+    queryKey: ['stores', activeSearch, currentPage, location?.lat, location?.lng],
+    queryFn: () => fetchStores({ search: activeSearch, page: currentPage, limit: itemsPerPage, lat: location?.lat, lng: location?.lng }),
   });
 
   const handleSearchSubmit = () => {

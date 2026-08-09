@@ -47,7 +47,7 @@ export function ProductCarousel({
           {products.map((product) => (
             <div
               key={product.id}
-              className="flex-shrink-0 w-44 sm:w-48"
+              className="flex-shrink-0 w-32 sm:w-36"
               style={{ scrollSnapAlign: 'start' }}
             >
               <ProductCard

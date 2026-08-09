@@ -12,14 +12,19 @@ import { PromoCarousel } from '@/components/home/promo-carousel';
 import { useCart } from '@/lib/cart-context';
 import { categories, products } from '@/lib/products';
 import { fetchPrimaryCategories } from '@/lib/api/categories';
+import { useLocation } from '@/lib/location-context';
 
 export default function Home() {
   const { items, addItem } = useCart();
   const cartCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  
+  const { location } = useLocation();
+  const lat = location?.lat;
+  const lng = location?.lng;
 
-  const { data: storeLogosResponse, isLoading: isLoadingStores } = useQuery({
-    queryKey: ['top-store-logos'],
-    queryFn: fetchTopStoreLogos
+  const { data: storeLogosResponse, isLoading: isLoadingStores, error: storesError } = useQuery({
+    queryKey: ['top-store-logos', lat, lng],
+    queryFn: () => fetchTopStoreLogos(lat, lng)
   });
 
   const apiStores = storeLogosResponse?.data?.map((store: any, index: number) => ({
@@ -28,24 +33,24 @@ export default function Home() {
     image: store.logo,
   })) || [];
 
-  const { data: topPicksResponse, isLoading: isLoadingTopPicks } = useQuery({
-    queryKey: ['top-picks'],
-    queryFn: fetchTopPicks
+  const { data: topPicksResponse, isLoading: isLoadingTopPicks, error: topPicksError } = useQuery({
+    queryKey: ['top-picks', lat, lng],
+    queryFn: () => fetchTopPicks(lat, lng)
   });
 
   const { data: freshHealthyResponse, isLoading: isLoadingFreshHealthy } = useQuery({
-    queryKey: ['fresh-healthy'],
-    queryFn: fetchFreshHealthy
+    queryKey: ['fresh-healthy', lat, lng],
+    queryFn: () => fetchFreshHealthy(lat, lng)
   });
 
   const { data: weeklyDealsResponse, isLoading: isLoadingWeeklyDeals } = useQuery({
-    queryKey: ['weekly-deals'],
-    queryFn: fetchWeeklyDeals
+    queryKey: ['weekly-deals', lat, lng],
+    queryFn: () => fetchWeeklyDeals(lat, lng)
   });
 
   const { data: bestSellersResponse, isLoading: isLoadingBestSellers } = useQuery({
-    queryKey: ['best-sellers'],
-    queryFn: fetchBestSellers
+    queryKey: ['best-sellers', lat, lng],
+    queryFn: () => fetchBestSellers(lat, lng)
   });
 
   const { data: categoriesResponse, isLoading: isLoadingCategories } = useQuery({
@@ -56,8 +61,8 @@ export default function Home() {
   const apiCategories = categoriesResponse?.data || [];
 
   const { data: newArrivalsResponse, isLoading: isLoadingNewArrivals } = useQuery({
-    queryKey: ['new-arrivals'],
-    queryFn: fetchNewArrivals
+    queryKey: ['new-arrivals', lat, lng],
+    queryFn: () => fetchNewArrivals(lat, lng)
   });
 
   // Group products by category for carousels (fallbacks)
@@ -126,23 +131,39 @@ export default function Home() {
       {/* Promotional Image Slider */}
       <PromoCarousel />
 
-      {/* All Stores Carousel */}
-      {isLoadingStores ? (
-        <div className="px-4 py-2 flex gap-2 overflow-x-auto">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="w-18 h-18 rounded-full flex-shrink-0" />
-          ))}
+      {(storesError || topPicksError) ? (
+        <div className="flex flex-col items-center justify-center p-8 mt-12 text-center animate-in fade-in duration-500">
+          <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
+            <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Service Not Available</h2>
+          <p className="text-gray-500 max-w-md mx-auto">
+            {storesError?.message || topPicksError?.message || "Sorry, we don't provide service in your selected area yet. We are expanding rapidly, please check back soon!"}
+          </p>
         </div>
       ) : (
-        <StoresCarousel apiStores={apiStores} />
-      )}
+        <>
+          {/* All Stores Carousel */}
+          {isLoadingStores ? (
+            <div className="px-4 py-2 flex gap-2 overflow-x-auto">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton key={i} className="w-18 h-18 rounded-full flex-shrink-0" />
+              ))}
+            </div>
+          ) : (
+            <StoresCarousel apiStores={apiStores} />
+          )}
 
-      {/* Product Carousels */}
-      {renderCarousel(topPicksTitle, apiTopPicks, isLoadingTopPicks)}
-      {renderCarousel(freshHealthyTitle, apiFreshHealthy, isLoadingFreshHealthy)}
-      {renderCarousel(weeklyDealsTitle, apiWeeklyDeals, isLoadingWeeklyDeals)}
-      {renderCarousel(bestSellersTitle, apiBestSellers, isLoadingBestSellers)}
-      {renderCarousel(newArrivalsTitle, apiNewArrivals, isLoadingNewArrivals)}
+          {/* Product Carousels */}
+          {renderCarousel(topPicksTitle, apiTopPicks, isLoadingTopPicks)}
+          {renderCarousel(freshHealthyTitle, apiFreshHealthy, isLoadingFreshHealthy)}
+          {renderCarousel(weeklyDealsTitle, apiWeeklyDeals, isLoadingWeeklyDeals)}
+          {renderCarousel(bestSellersTitle, apiBestSellers, isLoadingBestSellers)}
+          {renderCarousel(newArrivalsTitle, apiNewArrivals, isLoadingNewArrivals)}
+        </>
+      )}
 
       {/* Bottom Navigation */}
       <BottomNavigation cartCount={cartCount} />

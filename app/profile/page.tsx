@@ -14,7 +14,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { useCart } from '@/lib/cart-context';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { User, Phone, Mail, Calendar, Shield, CheckCircle, XCircle, ArrowLeft, Loader2, Lock, ShieldCheck, Pencil, Camera, Upload, Package, LogOut as LogOutIcon } from 'lucide-react';
+import { User, Phone, Mail, Calendar, Shield, CheckCircle, XCircle, ArrowLeft, Loader2, Lock, ShieldCheck, Pencil, Camera, Upload, Package, LogOut as LogOutIcon, MapPin } from 'lucide-react';
 
 export default function ProfilePage() {
   const { items, clearCart } = useCart();
@@ -428,6 +428,25 @@ export default function ProfilePage() {
           >
             <Package className="h-4 w-4" />
             My Orders
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2 h-11 rounded-xl text-base font-semibold border-border hover:bg-muted transition-all hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
+            onClick={() => window.location.href = '/profile/wallet'}
+          >
+            {/* Using MapPin icon or similar if Wallet icon not imported, we will import Wallet icon */}
+            <span className="h-4 w-4 text-primary flex items-center justify-center">₹</span>
+            My Wallet
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full justify-start gap-2 h-11 rounded-xl text-base font-semibold border-border hover:bg-muted transition-all hover:scale-[1.01] active:scale-[0.99] duration-200 cursor-pointer"
+            onClick={() => window.location.href = '/profile/addresses'}
+          >
+            <MapPin className="h-4 w-4 text-primary" />
+            My Addresses
           </Button>
 
           <Button

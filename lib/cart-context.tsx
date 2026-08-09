@@ -153,15 +153,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const resData = await response.json();
           if (resData.success && resData.data?.items) {
             const mappedItems = resData.data.items.map((item: any) => ({
-              id: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
-              productId: typeof item.productId === 'object' && item.productId ? item.productId._id : item.productId,
+              id: item.inventoryId?._id || item.inventoryId,
+              productId: item.productId?._id || item.productId,
               cartItemId: item._id,
               name: item.name,
               price: item.price,
               category: item.category || 'Product',
               image: item.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
               quantity: item.quantity,
-              inventoryId: typeof item.inventoryId === 'object' && item.inventoryId ? item.inventoryId._id : item.inventoryId,
+              inventoryId: item.inventoryId?._id || item.inventoryId,
             }));
             setItems(mappedItems);
             
@@ -234,12 +234,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       window.addEventListener('storage', checkAndSync);
       window.addEventListener('login-success', checkAndSync);
-      window.addEventListener('cart-updated', loadFromIndexedDB);
+      window.addEventListener('cart-updated', checkAndSync);
       
       return () => {
         window.removeEventListener('storage', checkAndSync);
         window.removeEventListener('login-success', checkAndSync);
-        window.removeEventListener('cart-updated', loadFromIndexedDB);
+        window.removeEventListener('cart-updated', checkAndSync);
       };
     }
   }, []);
@@ -270,15 +270,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const resData = await response.json();
           if (resData.success && resData.data?.items) {
             const mappedItems = resData.data.items.map((it: any) => ({
-              id: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
-              productId: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              id: it.inventoryId?._id || it.inventoryId,
+              productId: it.productId?._id || it.productId,
               cartItemId: it._id,
               name: it.name,
               price: it.price,
               category: it.category || 'Product',
               image: it.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
               quantity: it.quantity,
-              inventoryId: typeof it.inventoryId === 'object' && it.inventoryId ? it.inventoryId._id : it.inventoryId,
+              inventoryId: it.inventoryId?._id || it.inventoryId,
             }));
             setItems(mappedItems);
             
@@ -325,15 +325,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const resData = await response.json();
           if (resData.success && resData.data?.items) {
             const mappedItems = resData.data.items.map((it: any) => ({
-              id: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
-              productId: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              id: it.inventoryId?._id || it.inventoryId,
+              productId: it.productId?._id || it.productId,
               cartItemId: it._id,
               name: it.name,
               price: it.price,
               category: it.category || 'Product',
               image: it.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
               quantity: it.quantity,
-              inventoryId: typeof it.inventoryId === 'object' && it.inventoryId ? it.inventoryId._id : it.inventoryId,
+              inventoryId: it.inventoryId?._id || it.inventoryId,
             }));
             setItems(mappedItems);
             
@@ -382,15 +382,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           const resData = await response.json();
           if (resData.success && resData.data?.items) {
             const mappedItems = resData.data.items.map((it: any) => ({
-              id: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
-              productId: typeof it.productId === 'object' && it.productId ? it.productId._id : it.productId,
+              id: it.inventoryId?._id || it.inventoryId,
+              productId: it.productId?._id || it.productId,
               cartItemId: it._id,
               name: it.name,
               price: it.price,
               category: it.category || 'Product',
               image: it.imageUrl || 'https://images.unsplash.com/photo-1441984904556-0ac8d9c98337?w=120&h=120&fit=crop',
               quantity: it.quantity,
-              inventoryId: typeof it.inventoryId === 'object' && it.inventoryId ? it.inventoryId._id : it.inventoryId,
+              inventoryId: it.inventoryId?._id || it.inventoryId,
             }));
             setItems(mappedItems);
             

@@ -37,6 +37,15 @@ export function ProductCard({
   const [isLoading, setIsLoading] = useState(false);
   const isInCart = items.some((item) => item.id === id || (inventoryId && item.inventoryId === inventoryId));
 
+  useEffect(() => {
+    if (items.length > 0) {
+      console.log(`[ProductCard Debug] "${name}":`);
+      console.log(`  - Card props: id=${id}, inventoryId=${inventoryId}`);
+      console.log(`  - Cart items in context:`, items.map(it => ({ id: it.id, inventoryId: it.inventoryId, name: it.name })));
+      console.log(`  - Evaluation: isInCart=${isInCart}`);
+    }
+  }, [items, id, inventoryId, isInCart, name]);
+
   // Generate a stable pseudo-random discount based on the product id string
   const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const fallbackDiscount = (hash % 30) + 10; // Stable discount 10-39%
@@ -75,6 +84,8 @@ export function ProductCard({
           <img
             src={displayImages[0] || ''}
             alt={name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
           />
           {/* Overlay gradient */}
@@ -95,7 +106,7 @@ export function ProductCard({
             {category}
           </span>
           <Link href={`/product?id=${id}`}>
-            <h3 className="font-bold text-gray-900 line-clamp-2 text-sm sm:text-xs leading-snug group-hover:text-primary transition-colors">
+            <h3 className="font-bold text-gray-900 truncate text-sm sm:text-xs leading-snug group-hover:text-primary transition-colors">
               {name}
             </h3>
           </Link>
@@ -126,8 +137,8 @@ export function ProductCard({
             }}
             disabled={isLoading}
             className={`h-8 w-8 sm:h-9 sm:w-9 rounded-xl sm:rounded-2xl flex items-center justify-center transition-colors duration-300 shadow-md group-hover:scale-105 active:scale-95 flex-shrink-0 ${isLoading
-                ? 'bg-gray-400 cursor-not-allowed text-white'
-                : isInCart
+              ? 'bg-gray-400 cursor-not-allowed text-white'
+              : isInCart
                 ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 : 'bg-black hover:bg-primary text-white'
               }`}

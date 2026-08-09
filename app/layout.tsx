@@ -9,6 +9,7 @@ import { QueryProvider } from '@/components/query-provider'
 import { CapacitorHandler } from '@/components/capacitor-handler'
 import { PullToRefresh } from '@/components/pull-to-refresh'
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { LocationProvider } from '@/lib/location-context'
 import './globals.css'
 
 export const viewport: Viewport = {
@@ -60,15 +61,17 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground">
         <AppProvider>
           <QueryProvider>
-            <CartProvider>
-              <CapacitorHandler />
-              <SpeedInsights />
-              <PullToRefresh>
-                {children}
-              </PullToRefresh>
-              {process.env.NODE_ENV === 'production' && <Analytics />}
-              <Toaster />
-            </CartProvider>
+            <LocationProvider>
+              <CartProvider>
+                <CapacitorHandler />
+                <SpeedInsights />
+                <PullToRefresh>
+                  {children}
+                </PullToRefresh>
+                {process.env.NODE_ENV === 'production' && <Analytics />}
+                <Toaster />
+              </CartProvider>
+            </LocationProvider>
           </QueryProvider>
         </AppProvider>
       </body>

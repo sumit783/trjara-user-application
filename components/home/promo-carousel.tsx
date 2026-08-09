@@ -96,6 +96,8 @@ export function PromoCarousel() {
                 <img
                   src={banner.image}
                   alt={banner.title.replace('\n', ' ')}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover drop-shadow-md"
                 />
               </div>

@@ -18,16 +18,19 @@ interface OrderSummaryProps {
     message?: string;
     deliveryTime?: number;
   } | null;
-  onCompleteBooking: (paymentMethod: 'ONLINE' | 'COD') => void;
+  onCompleteBooking: (paymentMethod: 'ONLINE' | 'COD' | 'WALLET') => void;
   itemsCount: number;
-  codInfo: {
+  codInfo?: {
     isCodAvailable: boolean;
     codCharge: number;
-    codDisableReason: string;
+    codDisableReason?: string;
   } | null;
+  useWallet?: boolean;
+  setUseWallet?: (val: boolean) => void;
+  walletBalance?: number;
 }
 
-const formatDeliveryTime = (mins?: number) => {
+const formatDeliveryTime = (mins: number) => {
   if (mins === undefined || mins === null) return '';
   const roundedMins = Math.round(mins);
   if (roundedMins <= 0) return '';
@@ -53,8 +56,15 @@ export function OrderSummary({
   onCompleteBooking,
   itemsCount,
   codInfo,
+  useWallet = false,
+  setUseWallet,
+  walletBalance = 0,
 }: OrderSummaryProps) {
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod'>('online');
+  const [paymentMethod, setPaymentMethod] = useState<'online' | 'cod' | 'wallet'>('online');
+
+  const finalTotal = totalAmount + (paymentMethod === 'cod' && codInfo?.isCodAvailable ? codInfo.codCharge : 0);
+  const amountToPay = useWallet ? Math.max(0, finalTotal - walletBalance) : finalTotal;
+  const walletDeducted = useWallet ? Math.min(finalTotal, walletBalance) : 0;
 
   return (
     <div className="bg-white border border-border rounded-3xl p-6 sticky top-24 space-y-5 shadow-[0_8px_30px_rgb(0,0,0,0.02)]">
@@ -186,7 +196,10 @@ export function OrderSummary({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={() => setPaymentMethod('online')}
+              onClick={() => {
+                setPaymentMethod('online');
+                if (setUseWallet) setUseWallet(false);
+              }}
               className={`flex flex-col items-start p-3 rounded-2xl border text-left transition-all duration-300 ${paymentMethod === 'online'
                 ? 'border-primary bg-primary/5 text-foreground'
                 : 'border-border bg-white text-muted-foreground hover:bg-gray-50'
@@ -199,7 +212,10 @@ export function OrderSummary({
             <button
               type="button"
               disabled={!codInfo.isCodAvailable}
-              onClick={() => setPaymentMethod('cod')}
+              onClick={() => {
+                setPaymentMethod('cod');
+                if (setUseWallet) setUseWallet(false);
+              }}
               className={`flex flex-col items-start p-3 rounded-2xl border text-left transition-all duration-300 relative ${!codInfo.isCodAvailable
                 ? 'border-gray-100 bg-gray-50/50 opacity-60 cursor-not-allowed text-muted-foreground/60'
                 : paymentMethod === 'cod'
@@ -214,6 +230,30 @@ export function OrderSummary({
                   : 'Unavailable'}
               </span>
             </button>
+
+            {walletBalance > 0 && (
+              <button
+                type="button"
+                disabled={walletBalance < finalTotal}
+                onClick={() => {
+                  setPaymentMethod('wallet');
+                  if (setUseWallet) setUseWallet(true);
+                }}
+                className={`flex flex-col items-start p-3 rounded-2xl border text-left transition-all duration-300 col-span-2 relative ${walletBalance < finalTotal
+                  ? 'border-gray-100 bg-gray-50/50 opacity-60 cursor-not-allowed text-muted-foreground/60'
+                  : paymentMethod === 'wallet'
+                    ? 'border-primary bg-primary/5 text-foreground'
+                    : 'border-border bg-white text-muted-foreground hover:bg-gray-50'
+                  }`}
+              >
+                <span className="text-[11px] font-black uppercase tracking-wide">Pay via Wallet</span>
+                <span className="text-[10px] opacity-80 mt-0.5 w-full">
+                  {walletBalance < finalTotal
+                    ? `Insufficient Balance (₹${walletBalance.toFixed(2)} Available)`
+                    : `₹${walletBalance.toFixed(2)} Available`}
+                </span>
+              </button>
+            )}
           </div>
 
           {/* COD Disabled Warning */}
@@ -225,19 +265,49 @@ export function OrderSummary({
         </div>
       )}
 
+      {/* Wallet Toggle */}
+      {isBackendCartActive && walletBalance > 0 && setUseWallet && (
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-foreground">Use Wallet Balance</span>
+            <span className="text-xs text-emerald-600 font-semibold">Available: ₹{walletBalance.toFixed(2)}</span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={useWallet}
+            onClick={() => setUseWallet(!useWallet)}
+            className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${useWallet ? 'bg-primary' : 'bg-muted'}`}
+          >
+            <span className="sr-only">Use wallet balance</span>
+            <span
+              className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${useWallet ? 'translate-x-5' : 'translate-x-0'}`}
+            />
+          </button>
+        </div>
+      )}
+
       {/* Grand Total */}
-      <div className="border-t border-border pt-4 flex justify-between items-center">
-        <span className="font-black text-base text-foreground">
-          Total Amount:
-        </span>
-        <span className="text-2xl font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          ₹{(totalAmount + (paymentMethod === 'cod' && codInfo?.isCodAvailable ? codInfo.codCharge : 0)).toFixed(2)}
-        </span>
+      <div className="border-t border-border pt-4 flex flex-col gap-1">
+        {useWallet && walletDeducted > 0 && (
+          <div className="flex justify-between items-center text-sm">
+            <span className="font-semibold text-muted-foreground">Wallet Deduction:</span>
+            <span className="font-bold text-destructive">-₹{walletDeducted.toFixed(2)}</span>
+          </div>
+        )}
+        <div className="flex justify-between items-center">
+          <span className="font-black text-base text-foreground">
+            {useWallet && walletDeducted >= finalTotal ? 'Total Amount' : 'Amount to Pay'}:
+          </span>
+          <span className="text-2xl font-black bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            ₹{amountToPay.toFixed(2)}
+          </span>
+        </div>
       </div>
 
       <div className="space-y-2 pt-4">
         <Button
-          onClick={() => onCompleteBooking(paymentMethod === 'online' ? 'ONLINE' : 'COD')}
+          onClick={() => onCompleteBooking(paymentMethod.toUpperCase() as 'ONLINE' | 'COD' | 'WALLET')}
           disabled={itemsCount === 0}
           className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-bold h-12 rounded-xl shadow-sm text-sm"
         >
